@@ -6,6 +6,10 @@ START_API_PORT=6001
 NUM_AGENTS=7 # number of agents to the created 
 AGENT_ID_PREFIX=6  # Prefix number for agent IDs (e.g., agentm6)
 
+# SSL Configuration
+CERT_PATH="/etc/letsencrypt/live/chat6.nanda/fullchain.pem"  # Path to SSL certificate
+KEY_PATH="/etc/letsencrypt/live/chat6.nanda/privkey.pem"   # Path to SSL private key
+
 # Create logs directory if it doesn't exist
 mkdir -p logs
 
@@ -53,7 +57,7 @@ for i in "${!BRIDGE_PORTS[@]}"; do
     echo "Public URL: $PUBLIC_URL"
     echo "API URL: $API_URL"
     
-    nohup python3 -u run_ui_agent_https.py --id "$AGENT_ID" --port "$BRIDGE_PORT" --api-port "$API_PORT" --public-url "$PUBLIC_URL" --api-url "$API_URL" --registry https://chat.nanda-registry.com:6900 --ssl > "logs/${AGENT_ID}_logs.txt" 2>&1 &
+    nohup python3 -u run_ui_agent_https.py --id "$AGENT_ID" --port "$BRIDGE_PORT" --api-port "$API_PORT" --public-url "$PUBLIC_URL" --api-url "$API_URL" --registry https://chat.nanda-registry.com:6900 --ssl --cert "$CERT_PATH" --key "$KEY_PATH" > "logs/${AGENT_ID}_logs.txt" 2>&1 &
     
     # Store the process ID for later reference
     echo "$!" > "logs/${AGENT_ID}.pid"

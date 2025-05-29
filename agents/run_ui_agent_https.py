@@ -383,40 +383,21 @@ def main():
     
     # Configure SSL context if needed
     ssl_context = None
-
-    print("Using Let's Encrypt certificates")
-
-    cert_path = '/home/ec2-user/certificates/fullchain.pem'
-    key_path = '/home/ec2-user/certificates/privkey.pem'
-
-    ssl_context = (cert_path, key_path)
-
-    '''
-    if args.ssl or args.cert or args.key:
-        if args.cert and args.key:
-            # Use custom certificates
-            ssl_context = (args.cert, args.key)
-            print(f"Using custom SSL certificates: {args.cert}, {args.key}")
+    if args.ssl:
+        if args.cert_path and args.key_path:
+            # Use provided certificate paths
+            if os.path.exists(args.cert_path) and os.path.exists(args.key_path):
+                ssl_context = (args.cert_path, args.key_path)
+                print(f"Using SSL certificates from: {args.cert_path}, {args.key_path}")
+            else:
+                print("ERROR: Certificate files not found at specified paths")
+                print(f"Certificate path: {args.cert_path}")
+                print(f"Key path: {args.key_path}")
+                sys.exit(1)
         else:
-            # Use Let's Encrypt certificates
-            try:
-                cert_path = '/home/ec2-user/certificates/fullchain.pem'
-                key_path = '/home/ec2-user/certificates/privkey.pem'
-                
-                # Check if we have permission to access these files
-                if os.access(cert_path, os.R_OK) and os.access(key_path, os.R_OK):
-                    ssl_context = (cert_path, key_path)
-                    print(f"Using Let's Encrypt certificates")
-                else:
-                    print("WARNING: Cannot access Let's Encrypt certificates. Running without SSL.")
-                    print("This might be due to permission issues. Consider:")
-                    print("1. Running with sudo")
-                    print("2. Using --cert and --key to specify accessible certificate files")
-                    print("3. Using a reverse proxy like Nginx for SSL termination")
-            except Exception as e:
-                print(f"ERROR with SSL certificates: {e}")
-                print("Running without SSL")
-    '''
+            print("ERROR: SSL enabled but certificate paths not provided")
+            print("Please provide --cert-path and --key-path arguments")
+            sys.exit(1)
 
     # Start the Flask API server
     app.run(host='0.0.0.0', port=api_port, threaded=True, ssl_context=ssl_context)

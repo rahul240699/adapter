@@ -7,8 +7,8 @@ NUM_AGENTS=7 # number of agents to the created
 AGENT_ID_PREFIX=6  # Prefix number for agent IDs (e.g., agentm6)
 
 # SSL Configuration
-CERT_PATH="/etc/letsencrypt/live/chat6.nanda/fullchain.pem"  # Path to SSL certificate
-KEY_PATH="/etc/letsencrypt/live/chat6.nanda/privkey.pem"   # Path to SSL private key
+CERT_PATH="/etc/letsencrypt/live/chat6.nanda-registry.com/fullchain.pem"  # Path to SSL certificate
+KEY_PATH="/etc/letsencrypt/live/chat6.nanda-registry.com/privkey.pem"   # Path to SSL private key
 
 # Create logs directory if it doesn't exist
 mkdir -p logs

@@ -1,0 +1,9 @@
+flask
+anthropic
+requests
+python-a2a
+mcp
+anthropic
+python-dotenv
+flask-cors
+pymongo

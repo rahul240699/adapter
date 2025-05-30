@@ -262,18 +262,6 @@ def render_on_ui():
             return jsonify({})
         else:
             latest_message = json.load(open(message_file))
-            
-            # Create a timestamped copy before deleting
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_file = f"messages/message_{timestamp}.json"
-            
-            # Ensure messages directory exists
-            os.makedirs("messages", exist_ok=True)
-            
-            # Save the timestamped copy
-            with open(backup_file, 'w') as f:
-                json.dump(latest_message, f, indent=2)
-            
             # Remove the original file
             os.remove(message_file)
             return jsonify(latest_message)

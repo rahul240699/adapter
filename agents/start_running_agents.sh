@@ -1,5 +1,5 @@
 #!/bin/bash
-
+source /opt/internet_of_agents/venv/bin/activate
 # Configuration
 START_BRIDGE_PORT=6000
 START_API_PORT=6001

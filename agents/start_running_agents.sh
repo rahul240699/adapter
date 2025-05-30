@@ -5,10 +5,11 @@ START_BRIDGE_PORT=6000
 START_API_PORT=6001
 NUM_AGENTS=7 # number of agents to the created 
 AGENT_ID_PREFIX=6  # Prefix number for agent IDs (e.g., agentm6)
+DOMAIN=nanda-registry.com
 
 # SSL Configuration
-CERT_PATH="/etc/letsencrypt/live/chat6.nanda-registry.com/fullchain.pem"  # Path to SSL certificate
-KEY_PATH="/etc/letsencrypt/live/chat6.nanda-registry.com/privkey.pem"   # Path to SSL private key
+CERT_PATH="/etc/letsencrypt/live/chat${AGENT_ID_PREFIX}.${DOMAIN}/fullchain.pem"  # Path to SSL certificate
+KEY_PATH="/etc/letsencrypt/live/chat${AGENT_ID_PREFIX}.${DOMAIN}/privkey.pem"   # Path to SSL private key
 
 # Create logs directory if it doesn't exist
 mkdir -p logs
@@ -51,7 +52,7 @@ for i in "${!BRIDGE_PORTS[@]}"; do
     BRIDGE_PORT=${BRIDGE_PORTS[$i]}
     API_PORT=${API_PORTS[$i]}
     PUBLIC_URL="http://$SERVER_IP:$BRIDGE_PORT"
-    API_URL="https://$SERVER_IP:$API_PORT"
+    API_URL="https://chat${AGENT_ID_PREFIX}.${DOMAIN}:$API_PORT"
     
     echo "Starting $AGENT_ID on bridge port $BRIDGE_PORT and API port $API_PORT"
     echo "Public URL: $PUBLIC_URL"

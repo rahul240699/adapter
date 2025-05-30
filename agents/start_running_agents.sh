@@ -4,7 +4,7 @@
 START_BRIDGE_PORT=6000
 START_API_PORT=6001
 NUM_AGENTS=7 # number of agents to the created 
-AGENT_ID_PREFIX=6  # Prefix number for agent IDs (e.g., agentm6)
+AGENT_ID_PREFIX=8  # Prefix number for agent IDs (e.g., agentm6)
 DOMAIN=nanda-registry.com
 
 # SSL Configuration

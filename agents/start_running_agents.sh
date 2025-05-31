@@ -75,3 +75,5 @@ echo "ps aux | grep run_ui_agent_https"
 echo ""
 echo "To stop all agents:"
 echo "for pid in logs/*.pid; do kill \$(cat \$pid); done" 
+
+sleep 90

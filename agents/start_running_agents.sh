@@ -1,10 +1,25 @@
 #!/bin/bash
 source /opt/internet_of_agents/venv/bin/activate
+
 # Configuration
 START_BRIDGE_PORT=6000
 START_API_PORT=6001
 NUM_AGENTS=7 # number of agents to the created 
-AGENT_ID_PREFIX=8  # Prefix number for agent IDs (e.g., agentm6)
+
+# Source .bashrc to get environment variables
+source ~/.bashrc
+
+# Check for required environment variables
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "Error: ANTHROPIC_API_KEY not found in .bashrc"
+    exit 1
+fi
+
+if [ -z "$AGENT_ID_PREFIX" ]; then
+    echo "Error: AGENT_ID_PREFIX not found in .bashrc"
+    exit 1
+fi
+
 DOMAIN=nanda-registry.com
 
 # SSL Configuration

@@ -5,7 +5,6 @@ source /opt/internet_of_agents/venv/bin/activate
 START_BRIDGE_PORT=6000
 START_API_PORT=6001
 
-
 # Source .bashrc to get environment variables
 source ~/.bashrc
 
@@ -20,15 +19,18 @@ if [ -z "$AGENT_ID_PREFIX" ]; then
     exit 1
 fi
 
+if [ -z "$DOMAIN_NAME" ]; then
+    echo "Error: DOMAIN_NAME not found in .bashrc"
+    exit 1
+fi
+
 # Use NUM_AGENTS from environment or default to 1
 NUM_AGENTS=${NUM_AGENTS:-1}
 echo "Using NUM_AGENTS=$NUM_AGENTS"
 
-DOMAIN=nanda-registry.com
-
 # SSL Configuration
-CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"  # Path to SSL certificate
-KEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"   # Path to SSL private key
+CERT_PATH="/etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem"  # Path to SSL certificate
+KEY_PATH="/etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem"   # Path to SSL private key
 
 # Create logs directory if it doesn't exist
 mkdir -p logs
@@ -57,21 +59,13 @@ else
     echo "Detected server IP: $SERVER_IP"
 fi
 
-# Source .bashrc to get the ANTHROPIC_API_KEY
-source ~/.bashrc
-
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo "Error: ANTHROPIC_API_KEY not found in .bashrc"
-    exit 1
-fi
-
 # Start each agent
 for i in "${!BRIDGE_PORTS[@]}"; do
     AGENT_ID="agentm${AGENT_ID_PREFIX}$((i))"
     BRIDGE_PORT=${BRIDGE_PORTS[$i]}
     API_PORT=${API_PORTS[$i]}
     PUBLIC_URL="http://$SERVER_IP:$BRIDGE_PORT"
-    API_URL="https://chat${AGENT_ID_PREFIX}.${DOMAIN}:$API_PORT"
+    API_URL="https://${DOMAIN_NAME}:$API_PORT"
     
     echo "Starting $AGENT_ID on bridge port $BRIDGE_PORT and API port $API_PORT"
     echo "Public URL: $PUBLIC_URL"

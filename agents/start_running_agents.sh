@@ -4,7 +4,7 @@ source /opt/internet_of_agents/venv/bin/activate
 # Configuration
 START_BRIDGE_PORT=6000
 START_API_PORT=6001
-NUM_AGENTS=7 # number of agents to the created 
+
 
 # Source .bashrc to get environment variables
 source ~/.bashrc
@@ -20,11 +20,15 @@ if [ -z "$AGENT_ID_PREFIX" ]; then
     exit 1
 fi
 
+# Use NUM_AGENTS from environment or default to 1
+NUM_AGENTS=${NUM_AGENTS:-1}
+echo "Using NUM_AGENTS=$NUM_AGENTS"
+
 DOMAIN=nanda-registry.com
 
 # SSL Configuration
-CERT_PATH="/etc/letsencrypt/live/chat${AGENT_ID_PREFIX}.${DOMAIN}/fullchain.pem"  # Path to SSL certificate
-KEY_PATH="/etc/letsencrypt/live/chat${AGENT_ID_PREFIX}.${DOMAIN}/privkey.pem"   # Path to SSL private key
+CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"  # Path to SSL certificate
+KEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"   # Path to SSL private key
 
 # Create logs directory if it doesn't exist
 mkdir -p logs

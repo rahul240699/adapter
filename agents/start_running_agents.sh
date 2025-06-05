@@ -1,32 +1,39 @@
 #!/bin/bash
 source /opt/internet_of_agents/venv/bin/activate
 
+# Source the environment file
+if [ -f "/etc/internet_of_agents.env" ]; then
+    source /etc/internet_of_agents.env
+else
+    echo "Error: /etc/internet_of_agents.env not found"
+    exit 1
+fi
+
 # Configuration
 START_BRIDGE_PORT=6000
 START_API_PORT=6001
 
-# Source .bashrc to get environment variables
-source ~/.bashrc
-
 # Check for required environment variables
 if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo "Error: ANTHROPIC_API_KEY not found in .bashrc"
+    echo "Error: ANTHROPIC_API_KEY not found in environment file"
     exit 1
 fi
 
 if [ -z "$AGENT_ID_PREFIX" ]; then
-    echo "Error: AGENT_ID_PREFIX not found in .bashrc"
+    echo "Error: AGENT_ID_PREFIX not found in environment file"
     exit 1
 fi
 
 if [ -z "$DOMAIN_NAME" ]; then
-    echo "Error: DOMAIN_NAME not found in .bashrc"
+    echo "Error: DOMAIN_NAME not found in environment file"
     exit 1
 fi
 
 # Use NUM_AGENTS from environment or default to 1
 NUM_AGENTS=${NUM_AGENTS:-1}
 echo "Using NUM_AGENTS=$NUM_AGENTS"
+echo "Using AGENT_ID_PREFIX=$AGENT_ID_PREFIX"
+echo "Using DOMAIN_NAME=$DOMAIN_NAME"
 
 # SSL Configuration
 CERT_PATH="/etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem"  # Path to SSL certificate

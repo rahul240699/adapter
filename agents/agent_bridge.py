@@ -339,7 +339,7 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
         return f"Error sending message to {target_agent_id}: {e}"
 
 
-def get_mcp_server_url(qualified_name: str) -> Optional[str]:
+def get_mcp_server_url(requested_registry: str,qualified_name: str) -> Optional[str]:
     """
     Query MongoDB to find MCP server URL based on qualifiedName.
     
@@ -356,7 +356,7 @@ def get_mcp_server_url(qualified_name: str) -> Optional[str]:
         
         print(f"Querying MCP registry DB:{mcp_registry_col} for {qualified_name}")
 
-        result = mcp_registry_col.find_one({"qualified_name": qualified_name})
+        result = mcp_registry_col.find_one({"qualified_name": qualified_name,"registry_provider":{"$regex": f"^{requested_registry}$", "$options": "i"}})
         
         if result:
             endpoint = result.get("endpoint")
@@ -624,11 +624,11 @@ class AgentBridge(A2AServer):
                 parts = user_text.split(" ", 1)
                 
                 if len(parts)>1:
-                    mcp_server_to_call = parts[0][1:]
+                    requested_registry,mcp_server_to_call = parts[0][1:].split(":",1)
                     query = parts[1]
-
+                    print(f"Requested registry: {requested_registry}, MCP server to call: {mcp_server_to_call}, query: {query}")
                     # Get the MCP server URL and config details
-                    response = get_mcp_server_url(mcp_server_to_call)
+                    response = get_mcp_server_url(requested_registry,mcp_server_to_call)
                     print("Response from get_mcp_server_url: ", response)
                     if response is None:    
                         return Message(
@@ -654,7 +654,7 @@ class AgentBridge(A2AServer):
                     result = asyncio.run(run_mcp_query(query, mcp_server_final_url))    
                     return Message( 
                         role=MessageRole.AGENT,
-                        content=TextContent(text=f"[AGENT {AGENT_ID}] {result}"),
+                        content=TextContent(text=f"{result}"),
                         parent_message_id=msg.message_id,
                         conversation_id=conversation_id
                     )

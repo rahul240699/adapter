@@ -97,4 +97,4 @@ echo ""
 echo "To stop all agents:"
 echo "for pid in logs/*.pid; do kill \$(cat \$pid); done" 
 
-sleep 180
+wait

@@ -172,7 +172,6 @@ def send_message():
                 metadata=metadata
             )
         )
-        print(f"#jinu - Receiving message from agent bridge3: {response}")
         
         # Extract the response from the agent
         if hasattr(response.content, 'text'):

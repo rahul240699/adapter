@@ -177,14 +177,19 @@ def send_message():
         # Extract the response from the agent
         if hasattr(response.content, 'text'):
             # Return the response with conversation ID
+        
             data= json.loads(response.content.text)
-            result = data['result']['artifacts'][0]['parts'][0]['text']
-            print(f"#jinu - Result: {result}")
-            return jsonify({
-                "response": result,
-                "conversation_id": response.conversation_id,
-                "agent_id": agent_id
-            })
+            artifacts = data.get("result", {}).get("artifacts", [])
+            if artifacts and "parts" in artifacts[0] and artifacts[0]["parts"]:
+                result = artifacts[0]["parts"][0].get("text", "")
+                return jsonify({
+                    "response": result,
+                    "conversation_id": response.conversation_id,
+                    "agent_id": agent_id
+                })
+            else:
+                return jsonify({"error": "Malformed response from agent"}), 500
+        
         else:
             return jsonify({"error": "Received non-text response"}), 500
             

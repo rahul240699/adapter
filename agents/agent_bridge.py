@@ -623,7 +623,7 @@ class AgentBridge(A2AServer):
                 print((f"Detected natural language command: {user_text}"))
                 parts = user_text.split(" ", 1)
                 
-                if len(parts)>1:
+                if len(parts)>1 and len(parts[0][1:].split(":",1))==2:
                     requested_registry,mcp_server_to_call = parts[0][1:].split(":",1)
                     query = parts[1]
                     print(f"Requested registry: {requested_registry}, MCP server to call: {mcp_server_to_call}, query: {query}")
@@ -652,6 +652,8 @@ class AgentBridge(A2AServer):
                         )
                     print(f"Running MCP query: {query} on {mcp_server_final_url}")
                     result = asyncio.run(run_mcp_query(query, mcp_server_final_url))    
+
+                    print(f"# Result from MCP query: {result}")
                     return Message( 
                         role=MessageRole.AGENT,
                         content=TextContent(text=f"{result}"),
@@ -663,7 +665,7 @@ class AgentBridge(A2AServer):
                     # Invalid # command format
                     return Message(
                         role=MessageRole.AGENT,
-                        content=TextContent(text=f"[AGENT {AGENT_ID}] Invalid format. Use '#mcp_server_name query' to send a query to an MCP server."),
+                        content=TextContent(text=f"[AGENT {AGENT_ID}] Invalid format. Use '#registry_provider:mcp_server_name query' to send a query to an MCP server."),
                         parent_message_id=msg.message_id,
                         conversation_id=conversation_id
                     )

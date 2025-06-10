@@ -123,7 +123,7 @@ def health_check():
 @app.route('/api/send', methods=['POST', 'OPTIONS'])
 def send_message():
     """Send a message to the agent bridge and return the response"""
-    print(f"Received message: {request.json}")
+    print(f"#jinu Received message: {request.json}")
     if request.method == 'OPTIONS':
         response = app.make_default_options_response()
         
@@ -157,9 +157,11 @@ def send_message():
         
         # Create an A2A client to talk to the agent bridge
         # Use HTTP for local communication
+        print(f"Sending message to agent bridge: {message_text}")
         bridge_url = f"http://localhost:{agent_port}/a2a"
         client = A2AClient(bridge_url, timeout=60)
         
+        print(f"#jinu Sending message to agent bridge2: {message_text}")
         # Send the message to the bridge WITHOUT preprocessing
         # Let the bridge handle "@" commands and "/query" commands
         response = client.send_message(
@@ -170,6 +172,7 @@ def send_message():
                 metadata=metadata
             )
         )
+        print(f"#jinu - Sending message to agent bridge3: {message_text}")
         
         # Extract the response from the agent
         if hasattr(response.content, 'text'):

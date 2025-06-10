@@ -14,6 +14,12 @@ from python_a2a import (
 )
 # MongoDB
 from pymongo import MongoClient
+import asyncio
+from mcp_utils import MCPClient
+import base64
+
+import sys
+sys.stdout.reconfigure(line_buffering=True)
 
 # Set API key through environment variable or directly in the code
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your key"
@@ -56,11 +62,14 @@ MONGO_URI = os.getenv("MONGODB_URI") or os.getenv("MONGO_URI") or "mongodb+srv:/
 
 # Allow custom DB name via env
 MONGO_DBNAME = os.getenv("MONGODB_DB", "iot_agents_db")
+MCP_REGISTRY = "mcp_registry"
+
 
 try:
     mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     mongo_client.admin.command("ping")
     mongo_db = mongo_client[MONGO_DBNAME]
+    mcp_registry_col = mongo_db[MCP_REGISTRY]
     messages_col = mongo_db["messages"]
     USE_MONGO = True
     print("[agent_bridge] Connected to MongoDB, message logs will be persisted.")
@@ -329,6 +338,80 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
         print(f"Error sending message to {target_agent_id}: {e}")
         return f"Error sending message to {target_agent_id}: {e}"
 
+
+def get_mcp_server_url(requested_registry: str,qualified_name: str) -> Optional[str]:
+    """
+    Query MongoDB to find MCP server URL based on qualifiedName.
+    
+    Args:
+        qualified_name (str): The qualifiedName to search for (e.g. "@opgginc/opgg-mcp")
+        
+    Returns:
+        Optional[tuple]: Tuple of (endpoint, config_json, registry_name) if found, None otherwise
+    """
+    try:
+        if not USE_MONGO:
+            print("MongoDB not available")
+            return None
+        
+        print(f"Querying MCP registry DB:{mcp_registry_col} for {qualified_name}")
+
+        result = mcp_registry_col.find_one({"qualified_name": qualified_name,"registry_provider":{"$regex": f"^{requested_registry}$", "$options": "i"}})
+        
+        if result:
+            endpoint = result.get("endpoint")
+            config = result.get("config")
+            config_json = json.loads(config)
+            registry_name = result.get("registry_provider")
+            print(f"Found MCP server URL for {qualified_name}: {endpoint} && {config_json}")
+            return endpoint, config_json, registry_name
+        else:
+            print(f"No MCP server found for qualified_name: {qualified_name}")
+            return None
+            
+    except Exception as e:
+        print(f"Error querying MCP server URL: {e}")
+        return None
+
+def form_mcp_server_url(url: str, config: dict, registry_name: str) -> Optional[str]:
+    """
+    Form the MCP server URL based on the URL and config.
+    
+    Args:
+        url (str): The URL of the MCP server
+        config (dict): The config of the MCP server
+        registry_name (str): The name of the registry provider
+        
+    Returns:
+        Optional[str]: The mcp server URL if smithery api key is available, otherwise None
+    """
+    try:
+        if registry_name == "smithery":
+            smithery_api_key = os.getenv("SMITHERY_API_KEY")
+            if not smithery_api_key:
+                print("❌ SMITHERY_API_KEY not found in environment.")
+                return None
+            config_b64 = base64.b64encode(json.dumps(config).encode())            
+            mcp_server_url = f"{url}?api_key={smithery_api_key}&config={config_b64}"
+        else:
+            mcp_server_url = url
+        return mcp_server_url
+
+    except Exception as e:
+        print(f"Issues with form_mcp_server_url: {e}")
+        return None
+
+async def run_mcp_query(query: str, updated_url: str) -> str:
+    try:
+        print(f"In run_mcp_query: MCP query: {query} on {updated_url}")
+
+        async with MCPClient() as client:
+            result = await client.process_query(query, updated_url)
+            return result
+    except Exception as e:
+        error_msg = f"Error processing MCP query: {str(e)}"
+        return error_msg
+
 # Add the async method to the A2AClient class if it doesn't exist
 if not hasattr(A2AClient, 'send_message_async'):
     def send_message_async(self, message: Message):
@@ -534,6 +617,59 @@ class AgentBridge(A2AServer):
                         parent_message_id=msg.message_id,
                         conversation_id=conversation_id
                     )
+            
+            elif user_text.startswith("#"):
+                # Parse the command
+                print((f"Detected natural language command: {user_text}"))
+                parts = user_text.split(" ", 1)
+                
+                if len(parts)>1 and len(parts[0][1:].split(":",1))==2:
+                    requested_registry,mcp_server_to_call = parts[0][1:].split(":",1)
+                    query = parts[1]
+                    print(f"Requested registry: {requested_registry}, MCP server to call: {mcp_server_to_call}, query: {query}")
+                    # Get the MCP server URL and config details
+                    response = get_mcp_server_url(requested_registry,mcp_server_to_call)
+                    print("Response from get_mcp_server_url: ", response)
+                    if response is None:    
+                        return Message(
+                            role=MessageRole.AGENT,
+                            content=TextContent(text=f"[AGENT {AGENT_ID}] MCP server '{mcp_server_to_call}' not found in registry. Please check the server name and try again."),
+                            parent_message_id=msg.message_id,
+                            conversation_id=conversation_id
+                        )
+                    else:
+                        mcp_server_url, config_details, registry_name = response
+                    print(f"Recieved details from DB: {mcp_server_url}, {config_details}, {registry_name}")
+                    # Form the MCP server URL
+                    mcp_server_final_url = form_mcp_server_url(mcp_server_url, config_details, registry_name)
+                    print(f"MCP server final URL: {mcp_server_final_url}")
+                    if mcp_server_final_url is None:
+                        return Message(
+                            role=MessageRole.AGENT,
+                            content=TextContent(text=f"[AGENT {AGENT_ID}] Ensure the required API key for registery is in env file"),
+                            parent_message_id=msg.message_id,
+                            conversation_id=conversation_id
+                        )
+                    print(f"Running MCP query: {query} on {mcp_server_final_url}")
+                    result = asyncio.run(run_mcp_query(query, mcp_server_final_url))    
+
+                    print(f"# Result from MCP query: {result}")
+                    return Message( 
+                        role=MessageRole.AGENT,
+                        content=TextContent(text=f"{result}"),
+                        parent_message_id=msg.message_id,
+                        conversation_id=conversation_id
+                    )
+                    
+                else:
+                    # Invalid # command format
+                    return Message(
+                        role=MessageRole.AGENT,
+                        content=TextContent(text=f"[AGENT {AGENT_ID}] Invalid format. Use '#registry_provider:mcp_server_name query' to send a query to an MCP server."),
+                        parent_message_id=msg.message_id,
+                        conversation_id=conversation_id
+                    )
+            
             # Check if this is a command (starts with /)
             elif user_text.startswith("/"):
                 # Parse the command
@@ -553,10 +689,10 @@ class AgentBridge(A2AServer):
                 elif command == "help":
                     # Help command - show only valid commands
                     help_text = """Available commands:
-        /help - Show this help message
-        /quit - Exit the terminal
-        /query [message] - Get a response from the agent privately
-        @<agent_id> [message] - Send a message to a specific agent"""
+                        /help - Show this help message
+                        /quit - Exit the terminal
+                        /query [message] - Get a response from the agent privately
+                        @<agent_id> [message] - Send a message to a specific agent"""
                     return Message(
                         role = MessageRole.AGENT,
                         content = TextContent(text=f"[AGENT {AGENT_ID}] {help_text}"),
@@ -605,16 +741,16 @@ class AgentBridge(A2AServer):
                 else:
                     # Invalid command
                     help_text = """Unknown command. Available commands:
-        /help - Show this help message
-        /quit - Exit the terminal
-        /query [message] - Get a response from the agent privately
-        @<agent_id> [message] - Send a message to a specific agent"""
+                        /help - Show this help message
+                        /quit - Exit the terminal
+                        /query [message] - Get a response from the agent privately
+                        @<agent_id> [message] - Send a message to a specific agent"""
                     return Message(
-                        role = MessageRole.AGENT,
-                        content = TextContent(text=f"[AGENT {AGENT_ID}] {help_text}"),
-                        parent_message_id = msg.message_id,
-                        conversation_id = conversation_id
-                    )
+                            role = MessageRole.AGENT,
+                            content = TextContent(text=f"[AGENT {AGENT_ID}] {help_text}"),
+                            parent_message_id = msg.message_id,
+                            conversation_id = conversation_id
+                        )
                             
             else:
                 # Regular message - process locally 

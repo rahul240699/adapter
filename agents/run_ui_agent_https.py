@@ -16,6 +16,8 @@ from threading import Event
 import ssl
 import datetime
 
+sys.stdout.reconfigure(line_buffering=True)
+
 # Global variables
 bridge_process = None
 registry_url = None
@@ -121,6 +123,7 @@ def health_check():
 @app.route('/api/send', methods=['POST', 'OPTIONS'])
 def send_message():
     """Send a message to the agent bridge and return the response"""
+
     if request.method == 'OPTIONS':
         response = app.make_default_options_response()
         
@@ -154,9 +157,11 @@ def send_message():
         
         # Create an A2A client to talk to the agent bridge
         # Use HTTP for local communication
-        bridge_url = f"http://localhost:{agent_port}/a2a"
+
+        bridge_url = f"http://localhost:{agent_port}"  # Remove /a2a since A2AClient adds it
         client = A2AClient(bridge_url, timeout=60)
         
+
         # Send the message to the bridge WITHOUT preprocessing
         # Let the bridge handle "@" commands and "/query" commands
         response = client.send_message(
@@ -171,11 +176,19 @@ def send_message():
         # Extract the response from the agent
         if hasattr(response.content, 'text'):
             # Return the response with conversation ID
-            return jsonify({
-                "response": response.content.text,
-                "conversation_id": response.conversation_id,
-                "agent_id": agent_id
-            })
+        
+            data= json.loads(response.content.text)
+            artifacts = data.get("result", {}).get("artifacts", [])
+            if artifacts and "parts" in artifacts[0] and artifacts[0]["parts"]:
+                result = artifacts[0]["parts"][0].get("text", "")
+                return jsonify({
+                    "response": result,
+                    "conversation_id": response.conversation_id,
+                    "agent_id": agent_id
+                })
+            else:
+                return jsonify({"error": "Malformed response from agent"}), 500
+        
         else:
             return jsonify({"error": "Received non-text response"}), 500
             
@@ -358,9 +371,12 @@ def main():
     os.makedirs(log_dir, exist_ok=True)
     os.environ["LOG_DIR"] = log_dir
     
+
+    log_file = open(f"{log_dir}/bridge_run.txt","a")
+
     # Start the agent bridge
     print(f"Starting agent bridge for {agent_id} on port {agent_port}...")
-    bridge_process = subprocess.Popen(["python3", "agent_bridge.py"])
+    bridge_process = subprocess.Popen(["python3", "agent_bridge.py"],stdout=log_file, stderr=log_file)
     
     # Give the bridge a moment to start
     time.sleep(2)

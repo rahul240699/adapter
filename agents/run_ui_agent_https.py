@@ -172,7 +172,7 @@ def send_message():
                 metadata=metadata
             )
         )
-        
+        print(f"Response: {response}")
         # Extract the response from the agent
         if hasattr(response.content, 'text'):
             # Return the response with conversation ID

@@ -1,3 +1,6 @@
 .env
 jinoos/
 .DS_Store
+agents/__pycache__/
+conversation_logs/
+agents/test.py

@@ -358,9 +358,12 @@ def main():
     os.makedirs(log_dir, exist_ok=True)
     os.environ["LOG_DIR"] = log_dir
     
+
+    log_file = open(f"{log_dir}/bridge_run.txt","a")
+
     # Start the agent bridge
     print(f"Starting agent bridge for {agent_id} on port {agent_port}...")
-    bridge_process = subprocess.Popen(["python3", "agent_bridge.py"])
+    bridge_process = subprocess.Popen(["python3", "agent_bridge.py"],stdout=log_file, stderr=log_file)
     
     # Give the bridge a moment to start
     time.sleep(2)

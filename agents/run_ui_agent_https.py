@@ -158,7 +158,7 @@ def send_message():
         # Create an A2A client to talk to the agent bridge
         # Use HTTP for local communication
 
-        bridge_url = f"http://localhost:{agent_port}"  # Remove /a2a since A2AClient adds it
+        bridge_url = f"http://localhost:{agent_port}/a2a"  # Remove /a2a since A2AClient adds it
         client = A2AClient(bridge_url, timeout=60)
         
 
@@ -374,7 +374,7 @@ def main():
 
     log_file = open(f"{log_dir}/bridge_run.txt","a")
 
-    # Start the agent bridge
+    # . the agent bridge
     print(f"Starting agent bridge for {agent_id} on port {agent_port}...")
     bridge_process = subprocess.Popen(["python3", "agent_bridge.py"],stdout=log_file, stderr=log_file)
     

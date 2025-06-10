@@ -14,7 +14,8 @@ import base64
 from anthropic import Anthropic
 
 
-
+import sys
+sys.stdout.reconfigure(line_buffering=True)
 
 
 

@@ -16,6 +16,8 @@ from threading import Event
 import ssl
 import datetime
 
+sys.stdout.reconfigure(line_buffering=True)
+
 # Global variables
 bridge_process = None
 registry_url = None

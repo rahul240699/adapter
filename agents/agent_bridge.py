@@ -18,6 +18,9 @@ import asyncio
 from mcp_utils import MCPClient
 import base64
 
+import sys
+sys.stdout.reconfigure(line_buffering=True)
+
 # Set API key through environment variable or directly in the code
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your key"
 

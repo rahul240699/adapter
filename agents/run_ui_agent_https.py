@@ -154,7 +154,7 @@ def send_message():
             'source': 'ui_client',
             'client_id': client_id
         }
-        
+
         # Create an A2A client to talk to the agent bridge
         # Use HTTP for local communication
 
@@ -176,19 +176,11 @@ def send_message():
         # Extract the response from the agent
         if hasattr(response.content, 'text'):
             # Return the response with conversation ID
-        
-            data= json.loads(response.content.text)
-            artifacts = data.get("result", {}).get("artifacts", [])
-            if artifacts and "parts" in artifacts[0] and artifacts[0]["parts"]:
-                result = artifacts[0]["parts"][0].get("text", "")
-                return jsonify({
-                    "response": result,
-                    "conversation_id": response.conversation_id,
-                    "agent_id": agent_id
-                })
-            else:
-                return jsonify({"error": "Malformed response from agent"}), 500
-        
+            return jsonify({
+                "response": response.content.text,
+                "conversation_id": response.conversation_id,
+                "agent_id": agent_id
+            })
         else:
             return jsonify({"error": "Received non-text response"}), 500
             

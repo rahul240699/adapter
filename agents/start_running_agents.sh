@@ -78,6 +78,7 @@ for i in "${!BRIDGE_PORTS[@]}"; do
     echo "Public URL: $PUBLIC_URL"
     echo "API URL: $API_URL"
     
+    PYTHONUNBUFFERED=1
     nohup python3 -u run_ui_agent_https.py --id "$AGENT_ID" --port "$BRIDGE_PORT" --api-port "$API_PORT" --public-url "$PUBLIC_URL" --api-url "$API_URL" --registry https://chat.nanda-registry.com:6900 --ssl --cert "$CERT_PATH" --key "$KEY_PATH" > "logs/${AGENT_ID}_logs.txt" 2>&1 &
     
     # Store the process ID for later reference

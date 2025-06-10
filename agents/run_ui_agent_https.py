@@ -123,6 +123,7 @@ def health_check():
 @app.route('/api/send', methods=['POST', 'OPTIONS'])
 def send_message():
     """Send a message to the agent bridge and return the response"""
+    print(f"Received message: {request.json}")
     if request.method == 'OPTIONS':
         response = app.make_default_options_response()
         

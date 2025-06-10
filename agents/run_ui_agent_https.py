@@ -158,7 +158,7 @@ def send_message():
         # Create an A2A client to talk to the agent bridge
         # Use HTTP for local communication
         print(f"Sending message to agent bridge: {message_text}")
-        bridge_url = f"http://localhost:{agent_port}/a2a"
+        bridge_url = f"http://localhost:{agent_port}"  # Remove /a2a since A2AClient adds it
         client = A2AClient(bridge_url, timeout=60)
         
         print(f"#jinu Sending message to agent bridge2: {message_text}")
@@ -172,7 +172,7 @@ def send_message():
                 metadata=metadata
             )
         )
-        print(f"#jinu - Sending message to agent bridge3: {message_text}")
+        print(f"#jinu - Receiving message from agent bridge3: {response}")
         
         # Extract the response from the agent
         if hasattr(response.content, 'text'):

@@ -7,3 +7,4 @@ anthropic
 python-dotenv
 flask-cors
 pymongo
+mcp[cli]

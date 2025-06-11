@@ -323,8 +323,8 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
             print("Warning: Could not set metadata, but continuing with message format")
 
         # Send message to the target agent's bridge
-        target_bridge_url = target_bridge_url.rstrip("/a2a")
-        print(f"Target bridge URL: {target_bridge_url}")
+        # target_bridge_url = target_bridge_url.rstrip("/a2a")
+        # print(f"Target bridge URL: {target_bridge_url}")
         bridge_client = A2AClient(target_bridge_url, timeout=30)
         response = bridge_client.send_message(
             Message(

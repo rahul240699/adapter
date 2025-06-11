@@ -158,7 +158,7 @@ def send_message():
         # Create an A2A client to talk to the agent bridge
         # Use HTTP for local communication
 
-        bridge_url = f"http://localhost:{agent_port}"  # Remove /a2a since A2AClient adds it
+        bridge_url = f"http://localhost:{agent_port}/a2a"  # Remove /a2a since A2AClient adds it
         client = A2AClient(bridge_url, timeout=60)
         
 

@@ -18,6 +18,21 @@ import sys
 sys.stdout.reconfigure(line_buffering=True)
 
 
+def parse_jsonrpc_response(response):
+    """Helper function to parse JSON-RPC responses from MCP server"""
+    if isinstance(response, str):
+        try:
+            response_json = json.loads(response)
+            if isinstance(response_json, dict) and "result" in response_json:
+                # Extract text from JSON-RPC structure
+                artifacts = response_json["result"].get("artifacts", [])
+                if artifacts and len(artifacts) > 0:
+                    parts = artifacts[0].get("parts", [])
+                    if parts and len(parts) > 0:
+                        return parts[0].get("text", str(response))
+        except json.JSONDecodeError:
+            pass
+    return str(response)
 
 class MCPClient:
     def __init__(self):
@@ -88,7 +103,11 @@ class MCPClient:
                         
                         # Call the tool
                         result = await self.session.call_tool(tool_name, tool_args)
-                        print("Tool result: ", str(result)[:100])
+                        print("Raw tool result: ", result)
+                        
+                        # Parse the result
+                        processed_result = parse_jsonrpc_response(result)
+                        print("Processed tool result: ", str(processed_result)[:100])
                         
                         # Add the assistant's message with tool use
                         messages.append({
@@ -107,7 +126,7 @@ class MCPClient:
                             "content": [{
                                 "type": "tool_result",
                                 "tool_use_id": block.id,
-                                "content": str(result)
+                                "content": str(processed_result)
                             }]
                         })
                 
@@ -130,7 +149,7 @@ class MCPClient:
             for block in message.content:
                 if block.type == "text":
                     final_response += block.text + "\n"
-            return final_response.strip() if final_response else "No response generated"
+            return parse_jsonrpc_response(final_response.strip()) if final_response else "No response generated"
             
         except Exception as e:
             print(f"Error processing query: {e}")

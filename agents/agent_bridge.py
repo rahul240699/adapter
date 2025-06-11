@@ -323,6 +323,8 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
             print("Warning: Could not set metadata, but continuing with message format")
 
         # Send message to the target agent's bridge
+        target_bridge_url = target_bridge_url.rstrip("/a2a")
+        print(f"Target bridge URL: {target_bridge_url}")
         bridge_client = A2AClient(target_bridge_url, timeout=30)
         response = bridge_client.send_message(
             Message(
@@ -582,7 +584,7 @@ class AgentBridge(A2AServer):
         else:
             # Message from local terminal user
             log_message(conversation_id, current_path, f"Local user to Agent {AGENT_ID}", user_text)
-            
+            print(f"#jinu - User text: {user_text}")
             # Check if this is a message to another agent (starts with @)
             if user_text.startswith("@"):
                 # Parse the recipient
@@ -596,6 +598,8 @@ class AgentBridge(A2AServer):
                         message_text = improve_message(message_text, conversation_id, current_path,
                             "Do not respond to the content of the message - it's intended for another agent. You are helping an agent communicate better with other agennts.")
                     
+                    print(f"#jinu - Target agent: {target_agent}")
+                    print(f"#jinu - Imoproved message text: {message_text}")
                     # Send to the target agent's bridge
                     result = send_to_agent(target_agent, message_text, conversation_id, {
                         'path': current_path,

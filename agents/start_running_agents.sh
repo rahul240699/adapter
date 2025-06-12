@@ -40,8 +40,9 @@ CERT_PATH="/etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem"  # Path to SSL ce
 KEY_PATH="/etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem"   # Path to SSL private key
 
 # Create logs directory if it doesn't exist
-LOGS_DIR="/opt/internet_of_agents/agents/logs"
-mkdir -p "$LOGS_DIR"
+mkdir -p logs
+
+
 
 # Generate the list of ports
 BRIDGE_PORTS=()
@@ -111,7 +112,7 @@ if [ -n "$USER_EMAIL" ]; then
 
     # Collect all agent IDs
     AGENT_IDS=()
-    for pidfile in "$LOGS_DIR/${AGENT_ID_PREFIX}"*.pid; do
+    for pidfile in "/opt/internet_of_agents/agents/logs/${AGENT_ID_PREFIX}"*.pid; do
         AGENT_ID=$(basename "$pidfile" .pid)
         AGENT_IDS+=("$AGENT_ID")
     done
@@ -120,7 +121,8 @@ if [ -n "$USER_EMAIL" ]; then
     AGENT_IDS_JSON=$(printf '%s\n' "${AGENT_IDS[@]}" | jq -R . | jq -s .)
 
     # Send to the API endpoint
-    curl -X POST "https://chat.nanda-registry.com:6900/api/send-agent-links" \
+    # curl -X POST "https://chat.nanda-registry.com:6900/api/send-agent-links" \
+    curl -X POST "http://chat115.nanda-registry.com:6900/api/send-agent-links" \
          -H "Content-Type: application/json" \
          -d "{\"email\": \"$USER_EMAIL\", \"agentIds\": $AGENT_IDS_JSON}"
 

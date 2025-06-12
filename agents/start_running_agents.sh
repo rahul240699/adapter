@@ -40,7 +40,8 @@ CERT_PATH="/etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem"  # Path to SSL ce
 KEY_PATH="/etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem"   # Path to SSL private key
 
 # Create logs directory if it doesn't exist
-mkdir -p logs
+LOGS_DIR="/opt/internet_of_agents/agents/logs"
+mkdir -p "$LOGS_DIR"
 
 # Generate the list of ports
 BRIDGE_PORTS=()
@@ -110,7 +111,7 @@ if [ -n "$USER_EMAIL" ]; then
 
     # Collect all agent IDs
     AGENT_IDS=()
-    for pidfile in logs/${AGENT_ID_PREFIX}*.pid; do
+    for pidfile in "$LOGS_DIR/${AGENT_ID_PREFIX}"*.pid; do
         AGENT_ID=$(basename "$pidfile" .pid)
         AGENT_IDS+=("$AGENT_ID")
     done

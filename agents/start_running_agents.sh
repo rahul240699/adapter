@@ -104,30 +104,30 @@ echo "To stop all agents:"
 echo 'for pid in logs/*.pid; do kill $(cat "$pid"); done' 
 
 # Wait for 20 seconds before sending the email to ensure all the files are created
-sleep 20
+# sleep 20
 
-# Send agent links to the provided email
-if [ -n "$USER_EMAIL" ]; then
-    echo "Preparing to send agent links to $USER_EMAIL..."
+# # Send agent links to the provided email
+# if [ -n "$USER_EMAIL" ]; then
+#     echo "Preparing to send agent links to $USER_EMAIL..."
 
-    # Collect all agent IDs
-    AGENT_IDS=()
-    for pidfile in "/opt/internet_of_agents/agents/logs/${AGENT_ID_PREFIX}"*.pid; do
-        AGENT_ID=$(basename "$pidfile" .pid)
-        AGENT_IDS+=("$AGENT_ID")
-    done
+#     # Collect all agent IDs
+#     AGENT_IDS=()
+#     for pidfile in "/opt/internet_of_agents/agents/logs/${AGENT_ID_PREFIX}"*.pid; do
+#         AGENT_ID=$(basename "$pidfile" .pid)
+#         AGENT_IDS+=("$AGENT_ID")
+#     done
 
-    # Convert array to JSON format
-    AGENT_IDS_JSON=$(printf '%s\n' "${AGENT_IDS[@]}" | jq -R . | jq -s .)
+#     # Convert array to JSON format
+#     AGENT_IDS_JSON=$(printf '%s\n' "${AGENT_IDS[@]}" | jq -R . | jq -s .)
 
-    # Send to the API endpoint
-    curl -X POST "https://chat.nanda-registry.com:6900/api/send-agent-links" \
-         -H "Content-Type: application/json" \
-         -d "{\"email\": \"$USER_EMAIL\", \"agentIds\": $AGENT_IDS_JSON}"
+#     # Send to the API endpoint
+#     curl -X POST "https://chat.nanda-registry.com:6900/api/send-agent-links" \
+#          -H "Content-Type: application/json" \
+#          -d "{\"email\": \"$USER_EMAIL\", \"agentIds\": $AGENT_IDS_JSON}"
 
-    echo "Agent links sent to $USER_EMAIL via API"
-else
-    echo "USER_EMAIL not set. Skipping email notification."
-fi
+#     echo "Agent links sent to $USER_EMAIL via API"
+# else
+#     echo "USER_EMAIL not set. Skipping email notification."
+# fi
 
 wait

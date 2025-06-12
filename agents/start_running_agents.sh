@@ -68,7 +68,11 @@ fi
 
 # Start each agent
 for i in "${!BRIDGE_PORTS[@]}"; do
-    AGENT_ID="agentm${AGENT_ID_PREFIX}$((i))"
+    if [[ "$DOMAIN_NAME" == *"nanda-registry.com"* ]]; then
+        AGENT_ID="agentm${AGENT_ID_PREFIX}$((i))"
+    else
+        AGENT_ID="agents${AGENT_ID_PREFIX}$((i))"
+    fi
     BRIDGE_PORT=${BRIDGE_PORTS[$i]}
     API_PORT=${API_PORTS[$i]}
     PUBLIC_URL="http://$SERVER_IP:$BRIDGE_PORT"
@@ -95,6 +99,28 @@ echo "Use the following command to check if agents are running:"
 echo "ps aux | grep run_ui_agent_https"
 echo ""
 echo "To stop all agents:"
-echo "for pid in logs/*.pid; do kill \$(cat \$pid); done" 
+echo "for pid in logs/*.pid; do kill $(cat "$pid"); done" 
+
+# Wait for 2 minutes before sending the email
+sleep 120
+
+# Send agent links to the provided email
+if [ -n "$USER_EMAIL" ]; then
+    echo "Preparing to send agent links to $USER_EMAIL..."
+
+    LINKS=""
+    for pidfile in logs/${AGENT_ID_PREFIX}*.pid; do
+        AGENT_ID=$(basename "$pidfile" .pid)
+        LINK="https://nanda-registry.com/landing.html?agentId=${AGENT_ID}"
+        LINKS+="${LINK}"$'\n'
+    done
+
+    BODY="Your agents have been successfully created.\n\nAccess links:\n${LINKS}"
+    echo -e "$BODY" | mail -s "Your Self-Hosted Agents Are Ready" -r "noreply@nanda-registry.com" "$USER_EMAIL"
+
+    echo "Agent links emailed to $USER_EMAIL"
+else
+    echo "USER_EMAIL not set. Skipping email notification."
+fi
 
 wait

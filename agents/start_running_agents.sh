@@ -99,26 +99,31 @@ echo "Use the following command to check if agents are running:"
 echo "ps aux | grep run_ui_agent_https"
 echo ""
 echo "To stop all agents:"
-echo "for pid in logs/*.pid; do kill $(cat "$pid"); done" 
+echo 'for pid in logs/*.pid; do kill $(cat "$pid"); done' 
 
-# Wait for 2 minutes before sending the email
-sleep 120
+# Wait for 20 seconds before sending the email to ensure all the files are created
+sleep 20
 
 # Send agent links to the provided email
 if [ -n "$USER_EMAIL" ]; then
     echo "Preparing to send agent links to $USER_EMAIL..."
 
-    LINKS=""
+    # Collect all agent IDs
+    AGENT_IDS=()
     for pidfile in logs/${AGENT_ID_PREFIX}*.pid; do
         AGENT_ID=$(basename "$pidfile" .pid)
-        LINK="https://nanda-registry.com/landing.html?agentId=${AGENT_ID}"
-        LINKS+="${LINK}"$'\n'
+        AGENT_IDS+=("$AGENT_ID")
     done
 
-    BODY="Your agents have been successfully created.\n\nAccess links:\n${LINKS}"
-    echo -e "$BODY" | mail -s "Your Self-Hosted Agents Are Ready" -r "noreply@nanda-registry.com" "$USER_EMAIL"
+    # Convert array to JSON format
+    AGENT_IDS_JSON=$(printf '%s\n' "${AGENT_IDS[@]}" | jq -R . | jq -s .)
 
-    echo "Agent links emailed to $USER_EMAIL"
+    # Send to the API endpoint
+    curl -X POST "https://chat.nanda-registry.com:6900/api/send-agent-links" \
+         -H "Content-Type: application/json" \
+         -d "{\"email\": \"$USER_EMAIL\", \"agentIds\": $AGENT_IDS_JSON}"
+
+    echo "Agent links sent to $USER_EMAIL via API"
 else
     echo "USER_EMAIL not set. Skipping email notification."
 fi

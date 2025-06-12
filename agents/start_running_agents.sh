@@ -121,8 +121,7 @@ if [ -n "$USER_EMAIL" ]; then
     AGENT_IDS_JSON=$(printf '%s\n' "${AGENT_IDS[@]}" | jq -R . | jq -s .)
 
     # Send to the API endpoint
-    # curl -X POST "https://chat.nanda-registry.com:6900/api/send-agent-links" \
-    curl -X POST "http://chat115.nanda-registry.com:6900/api/send-agent-links" \
+    curl -X POST "https://chat.nanda-registry.com:6900/api/send-agent-links" \
          -H "Content-Type: application/json" \
          -d "{\"email\": \"$USER_EMAIL\", \"agentIds\": $AGENT_IDS_JSON}"
 

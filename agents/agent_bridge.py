@@ -64,6 +64,7 @@ MONGO_URI = os.getenv("MONGODB_URI") or os.getenv("MONGO_URI") or "mongodb+srv:/
 MONGO_DBNAME = os.getenv("MONGODB_DB", "iot_agents_db")
 MCP_REGISTRY = "mcp_registry"
 
+SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY") or "bfcb8cec-9d56-4957-8156-bced0bfca532"
 
 try:
     mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
@@ -389,7 +390,8 @@ def form_mcp_server_url(url: str, config: dict, registry_name: str) -> Optional[
     """
     try:
         if registry_name == "smithery":
-            smithery_api_key = os.getenv("SMITHERY_API_KEY")
+            print("🔑 Using SMITHERY_API_KEY: ", SMITHERY_API_KEY)
+            smithery_api_key = SMITHERY_API_KEY
             if not smithery_api_key:
                 print("❌ SMITHERY_API_KEY not found in environment.")
                 return None
@@ -609,7 +611,7 @@ class AgentBridge(A2AServer):
                     # Return result to user
                     return Message(
                         role=MessageRole.AGENT,
-                        content=TextContent(text=f"[AGENT {AGENT_ID}] {result}"),
+                        content=TextContent(text=f"[AGENT {AGENT_ID}]: {message_text}"),
                         parent_message_id=msg.message_id,
                         conversation_id=conversation_id
                     )

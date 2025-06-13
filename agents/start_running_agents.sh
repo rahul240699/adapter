@@ -42,6 +42,8 @@ KEY_PATH="/etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem"   # Path to SSL priv
 # Create logs directory if it doesn't exist
 mkdir -p logs
 
+
+
 # Generate the list of ports
 BRIDGE_PORTS=()
 API_PORTS=()
@@ -68,7 +70,11 @@ fi
 
 # Start each agent
 for i in "${!BRIDGE_PORTS[@]}"; do
-    AGENT_ID="agentm${AGENT_ID_PREFIX}$((i))"
+    if [[ "$DOMAIN_NAME" == *"nanda-registry.com"* ]]; then
+        AGENT_ID="agentm${AGENT_ID_PREFIX}$((i))"
+    else
+        AGENT_ID="agents${AGENT_ID_PREFIX}$((i))"
+    fi
     BRIDGE_PORT=${BRIDGE_PORTS[$i]}
     API_PORT=${API_PORTS[$i]}
     PUBLIC_URL="http://$SERVER_IP:$BRIDGE_PORT"
@@ -95,6 +101,33 @@ echo "Use the following command to check if agents are running:"
 echo "ps aux | grep run_ui_agent_https"
 echo ""
 echo "To stop all agents:"
-echo "for pid in logs/*.pid; do kill \$(cat \$pid); done" 
+echo 'for pid in logs/*.pid; do kill $(cat "$pid"); done' 
+
+# Wait for 20 seconds before sending the email to ensure all the files are created
+# sleep 20
+
+# # Send agent links to the provided email
+# if [ -n "$USER_EMAIL" ]; then
+#     echo "Preparing to send agent links to $USER_EMAIL..."
+
+#     # Collect all agent IDs
+#     AGENT_IDS=()
+#     for pidfile in "/opt/internet_of_agents/agents/logs/${AGENT_ID_PREFIX}"*.pid; do
+#         AGENT_ID=$(basename "$pidfile" .pid)
+#         AGENT_IDS+=("$AGENT_ID")
+#     done
+
+#     # Convert array to JSON format
+#     AGENT_IDS_JSON=$(printf '%s\n' "${AGENT_IDS[@]}" | jq -R . | jq -s .)
+
+#     # Send to the API endpoint
+#     curl -X POST "https://chat.nanda-registry.com:6900/api/send-agent-links" \
+#          -H "Content-Type: application/json" \
+#          -d "{\"email\": \"$USER_EMAIL\", \"agentIds\": $AGENT_IDS_JSON}"
+
+#     echo "Agent links sent to $USER_EMAIL via API"
+# else
+#     echo "USER_EMAIL not set. Skipping email notification."
+# fi
 
 wait

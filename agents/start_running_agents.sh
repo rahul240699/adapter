@@ -29,11 +29,17 @@ if [ -z "$DOMAIN_NAME" ]; then
     exit 1
 fi
 
+if [ -z "$REGISTRY_URL" ]; then
+    echo "Error: REGISTRY_URL not found in environment file"
+    exit 1
+fi
+
 # Use NUM_AGENTS from environment or default to 1
 NUM_AGENTS=${NUM_AGENTS:-1}
 echo "Using NUM_AGENTS=$NUM_AGENTS"
 echo "Using AGENT_ID_PREFIX=$AGENT_ID_PREFIX"
 echo "Using DOMAIN_NAME=$DOMAIN_NAME"
+echo "Using REGISTRY_URL=$REGISTRY_URL"
 
 # SSL Configuration
 CERT_PATH="/etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem"  # Path to SSL certificate
@@ -85,7 +91,7 @@ for i in "${!BRIDGE_PORTS[@]}"; do
     echo "API URL: $API_URL"
     
     PYTHONUNBUFFERED=1
-    nohup python3 -u run_ui_agent_https.py --id "$AGENT_ID" --port "$BRIDGE_PORT" --api-port "$API_PORT" --public-url "$PUBLIC_URL" --api-url "$API_URL" --registry https://chat.nanda-registry.com:6900 --ssl --cert "$CERT_PATH" --key "$KEY_PATH" > "logs/${AGENT_ID}_logs.txt" 2>&1 &
+    nohup python3 -u run_ui_agent_https.py --id "$AGENT_ID" --port "$BRIDGE_PORT" --api-port "$API_PORT" --public-url "$PUBLIC_URL" --api-url "$API_URL" --registry "$REGISTRY_URL" --ssl --cert "$CERT_PATH" --key "$KEY_PATH" > "logs/${AGENT_ID}_logs.txt" 2>&1 &
     
     # Store the process ID for later reference
     echo "$!" > "logs/${AGENT_ID}.pid"

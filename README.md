@@ -24,6 +24,7 @@ The system requires a configuration file at `/etc/internet_of_agents.env` with t
 ANTHROPIC_API_KEY="your-api-key-here"
 AGENT_ID_PREFIX="your-prefix"
 DOMAIN_NAME="your-domain.com"
+REGISTRY_URL="https://your-registry-url:port"
 
 # Optional environment variables
 NUM_AGENTS=1  # Defaults to 1 if not specified
@@ -106,8 +107,8 @@ Each agent is configured with:
 
 ## Registry
 
-Agents are registered with a central registry at:
-- Registry URL: `https://chat.nanda-registry.com:6900`
+Agents are registered with a central registry specified by the REGISTRY_URL environment variable.
+The registry URL should be a valid HTTPS endpoint.
 
 ## Security
 

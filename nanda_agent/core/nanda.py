@@ -286,6 +286,8 @@ class NANDA:
         
         print("🚀 Both servers started successfully!")
         print("📝 Servers are running in background threads")
-        print("🔄 start_server_api() method returning to caller")
+        print("🔄 Main process exiting - servers will continue running")
         
-        # Method returns immediately - servers continue running in background threads
+        # Force exit the main process while leaving threads running
+        import os
+        os._exit(0)

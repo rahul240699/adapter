@@ -66,21 +66,37 @@ class NANDA:
         # Register with the registry if PUBLIC_URL is set
         public_url = os.getenv("PUBLIC_URL")
         api_url = os.getenv("API_URL")
-        agent_id = get_agent_id()
+        agent_id = os.getenv("AGENT_ID")
+
+        ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your key"
+        AGENT_ID = os.getenv("AGENT_ID", "default")  # Default to 'default' if not specified
+        PORT = int(os.getenv("PORT", "6000"))
+        TERMINAL_PORT = int(os.getenv("TERMINAL_PORT", "6010"))
+
+
+        UI_MODE = os.getenv("UI_MODE", "true").lower() in ("true", "1", "yes", "y")
+        UI_CLIENT_URL = os.getenv("UI_CLIENT_URL", "")
+        print(f"🔧 UI_CLIENT_URL: {UI_CLIENT_URL}")
+
+        # os.environ["ANTHROPIC_API_KEY"] = ANTHROPIC_API_KEY
+        # os.environ["AGENT_ID"] = AGENT_ID
+        # os.environ["PORT"] = str(PORT)
+        # os.environ["PUBLIC_URL"] = public_url
+        # os.environ['API_URL'] = api_url
+        # os.environ["REGISTRY_URL"] = run_ui_agent_https.get_registry_url()
+        # os.environ["UI_MODE"] = "true"
+        # os.environ["UI_CLIENT_URL"] = f"{api_url}/api/receive_message"
 
         if public_url:
             register_with_registry(agent_id, public_url, api_url)
         else:
             print("WARNING: PUBLIC_URL environment variable not set. Agent will not be registered.")
         
+
         # Start the server
         IMPROVE_MESSAGES = os.getenv("IMPROVE_MESSAGES", "true").lower() in ("true", "1", "yes", "y")
         
-        PORT = int(os.getenv("PORT", "6000"))
-        TERMINAL_PORT = int(os.getenv("TERMINAL_PORT", "6010"))
-        LOG_DIR = os.getenv("LOG_DIR", "conversation_logs")
-        
-        print(f"\n🚀 Starting Agent {agent_id} bridge on port {PORT}")
+        print(f"\n🚀 Starting Agent {AGENT_ID} bridge on port {PORT}")
         print(f"Agent terminal port: {TERMINAL_PORT}")
         print(f"Message improvement feature is {'ENABLED' if IMPROVE_MESSAGES else 'DISABLED'}")
         print(f"Logging conversations to {os.path.abspath(LOG_DIR)}")

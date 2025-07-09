@@ -29,12 +29,14 @@ export DOMAIN_NAME="your-domain.com"
 ```
 
 ### 2. Create Your Own Agent
-#### 2.1 Write your improvement logic using the framework you like. Here it is a simple moduule without any llm call. 
-#### 2.2 In the main(), create your improvement function, initialize NANDA using the improvement function, and start the server with Anthropic key and domain using nanda.start_server_api().
-#### 2.3 In the requirements.txt file add nanda-agent along with other requirements 
-#### 2.4 Move this file into your server(the domain should match to the IP address) and run this python file in background 
-#### if langchain_pirate.py is python file name, use the below instructions: 
+
 ```bash
+2.1 Write your improvement logic using the framework you like. Here it is a simple moduule without any llm call. 
+2.2 In the main(), create your improvement function, initialize NANDA using the improvement function, and start the server with Anthropic key and domain using nanda.start_server_api().
+2.3 In the requirements.txt file add nanda-agent along with other requirements 
+2.4 Move this file into your server(the domain should match to the IP address) and run this python file in background 
+
+if langchain_pirate.py is python file name, use the below instructions to run in the background: 
 nohup python3 langchain_pirate.py > out.log 2>&1 &
 ```
 

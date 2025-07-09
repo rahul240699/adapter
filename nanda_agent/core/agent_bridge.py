@@ -93,7 +93,7 @@ def get_registry_url():
         print(f"Error reading registry URL from file: {e}")
     
     # Default if file doesn't exist
-    default_url = "http://localhost:6900"
+    default_url = "https://chat.nanda-registry.com:6900"
     print(f"Using default registry URL: {default_url}")
     return default_url
 

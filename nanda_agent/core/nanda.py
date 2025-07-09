@@ -286,7 +286,12 @@ class NANDA:
         
         print("🚀 Both servers started successfully!")
         print("📝 Servers are running in background threads")
-        print("🔄 Main process exiting - servers will continue running")
+        print("💡 To run in background, use: python3 script.py &")
         
-        # Force exit the main process while leaving threads running
-        return
+        # Keep the main process alive so threads continue running
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n🛑 Server stopped by user")
+            cleanup()

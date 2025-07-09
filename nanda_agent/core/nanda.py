@@ -217,8 +217,8 @@ class NANDA:
             print(f"🚀 Starting agent bridge for {agent_id} on port {port}...")
             self.start_server()
         
-        # Start the bridge server in a daemon thread
-        bridge_thread = threading.Thread(target=start_bridge_server, daemon=True)
+        # Start the bridge server in a non-daemon thread
+        bridge_thread = threading.Thread(target=start_bridge_server, daemon=False)
         bridge_thread.start()
         
         # Give the bridge a moment to start
@@ -273,8 +273,8 @@ class NANDA:
             except Exception as e:
                 print(f"❌ Error starting Flask server: {e}")
         
-        # Start the Flask server in a daemon thread
-        flask_thread = threading.Thread(target=start_flask_server, daemon=True)
+        # Start the Flask server in a non-daemon thread
+        flask_thread = threading.Thread(target=start_flask_server, daemon=False)
         flask_thread.start()
         
         # Give the Flask server a moment to start
@@ -284,13 +284,8 @@ class NANDA:
         print(f"🔧 Agent Bridge: http://localhost:{port}")
         print(f"🔧 Flask API: {'https' if ssl else 'http'}://localhost:{api_port}")
         
-        try:
-            # Keep the main thread alive
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n🛑 Server stopped by user")
-            cleanup()
-        except Exception as e:
-            print(f"❌ Error: {e}")
-            cleanup()
+        print("🚀 Both servers started successfully!")
+        print("📝 Servers are running in background threads")
+        print("🔄 start_server_api() method returning to caller")
+        
+        # Method returns immediately - servers continue running in background threads

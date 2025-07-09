@@ -259,17 +259,38 @@ class NANDA:
                 print(f"💡 You can generate them with: certbot --nginx -d {domain}")
                 sys.exit(1)
         
+        # Start the Flask API server in a separate thread
+        def start_flask_server():
+            """Start the Flask API server in a separate thread"""
+            try:
+                print(f"🚀 Starting Flask API server on port {api_port}...")
+                run_ui_agent_https.app.run(
+                    host='0.0.0.0', 
+                    port=api_port, 
+                    threaded=True, 
+                    ssl_context=ssl_context
+                )
+            except Exception as e:
+                print(f"❌ Error starting Flask server: {e}")
+        
+        # Start the Flask server in a daemon thread
+        flask_thread = threading.Thread(target=start_flask_server, daemon=True)
+        flask_thread.start()
+        
+        # Give the Flask server a moment to start
+        time.sleep(2)
+        
+        print(f"✅ Both servers are now running in background threads")
+        print(f"🔧 Agent Bridge: http://localhost:{port}")
+        print(f"🔧 Flask API: {'https' if ssl else 'http'}://localhost:{api_port}")
+        
         try:
-            # Start the Flask API server (same as run_ui_agent_https)
-            run_ui_agent_https.app.run(
-                host='0.0.0.0', 
-                port=api_port, 
-                threaded=True, 
-                ssl_context=ssl_context
-            )
+            # Keep the main thread alive
+            while True:
+                time.sleep(1)
         except KeyboardInterrupt:
             print("\n🛑 Server stopped by user")
             cleanup()
         except Exception as e:
-            print(f"❌ Error starting server: {e}")
+            print(f"❌ Error: {e}")
             cleanup()

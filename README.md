@@ -1,6 +1,6 @@
 # NANDA Agent Framework
 
-A customizable AI Agent Communication Framework with pluggable message improvement logic, built on top of the python_a2a communication framework.
+A customizable improvement logic for your agents,  and easily get registered into NANDA registry
 
 ## Features
 
@@ -19,62 +19,25 @@ A customizable AI Agent Communication Framework with pluggable message improveme
 pip install nanda-agent
 ```
 
-### With LangChain Support
-
-```bash
-pip install nanda-agent[langchain]
-```
-
-### With CrewAI Support
-
-```bash
-pip install nanda-agent[crewai]
-```
-
-### With All Dependencies
-
-```bash
-pip install nanda-agent[all]
-```
-
 ## Quick Start
 
-### 1. Set Your API Key
+### 1. Set Your API Key (For running your personal hosted agents, need API key and your own domain)
 
 ```bash
-export ANTHROPIC_API_KEY="your-api-key-here"
+export ANTHROPIC_API_KEY="your-api-key-here"\
+export DOMAIN_NAME="your-domain.com"
 ```
 
-### 2. Run a Simple Example
-
+### 2. Create Your Own Agent
+#### 2.1 Write your improvement logic using the framework you like. Here it is a simple moduule without any llm call. 
+#### 2.2 In the main(), create your improvement function, initialize NANDA using the improvement function, and start the server with Anthropic key and domain using nanda.start_server_api().
+#### 2.3 In the requirements.txt file add nanda-agent along with other requirements 
+#### 2.4 Move this file into your server(the domain should match to the IP address) and run this python file in background 
+#### if langchain_pirate.py is python file name, use the below instructions: 
 ```bash
-# Simple pirate agent (no extra dependencies)
-nanda-pirate
-
-# LangChain-powered pirate agent
-nanda-pirate-langchain
-
-# CrewAI-powered sarcastic agent
-nanda-sarcastic
+nohup python3 langchain_pirate.py > out.log 2>&1 &
 ```
 
-### 3. Create Your Own Agent
-
-```python
-from nanda_agent import NANDA
-
-def my_improvement_logic(message_text: str) -> str:
-    """Custom logic to improve messages"""
-    return f"✨ {message_text.upper()} ✨"
-
-# Create and start your agent
-nanda = NANDA(my_improvement_logic)
-nanda.start_server()
-```
-
-## Usage
-
-### Creating a Custom Agent
 
 ```python
 #!/usr/bin/env python3
@@ -107,14 +70,9 @@ def main():
     
     # Start the server
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-    domain = os.getenv("DOMAIN_NAME", "localhost")
+    domain = os.getenv("DOMAIN_NAME")
     
-    if domain != "localhost":
-        # Production API server
-        nanda.start_server_api(anthropic_key, domain)
-    else:
-        # Development server
-        nanda.start_server()
+    nanda.start_server_api(anthropic_key, domain)
 
 if __name__ == "__main__":
     main()
@@ -148,7 +106,11 @@ def create_langchain_improvement():
 
 # Use it
 nanda = NANDA(create_langchain_improvement())
-nanda.start_server()
+# Start the server
+anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+domain = os.getenv("DOMAIN_NAME")
+
+nanda.start_server_api(anthropic_key, domain)
 ```
 
 ### Using with CrewAI
@@ -186,15 +148,22 @@ def create_crewai_improvement():
 
 # Use it
 nanda = NANDA(create_crewai_improvement())
-nanda.start_server()
+# Start the server
+anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+domain = os.getenv("DOMAIN_NAME")
+
+nanda.start_server_api(anthropic_key, domain)
 ```
+
+### Checkout the examples folder for more details
+
 
 ## Configuration
 
 ### Environment Variables
 
 - `ANTHROPIC_API_KEY`: Your Anthropic API key (required)
-- `DOMAIN_NAME`: Domain name for SSL certificates (default: localhost)
+- `DOMAIN_NAME`: Domain name for SSL certificates
 - `AGENT_ID`: Custom agent ID (optional, auto-generated if not provided)
 - `PORT`: Agent bridge port (default: 6000)
 - `IMPROVE_MESSAGES`: Enable/disable message improvement (default: true)
@@ -260,14 +229,6 @@ The NANDA framework consists of:
 5. **Flask API**: External communication interface
 
 ## Development
-
-### Running from Source
-
-```bash
-git clone https://github.com/nanda-ai/nanda-agent.git
-cd nanda-agent
-pip install -e .
-```
 
 ### Creating Custom Agents
 

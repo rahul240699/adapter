@@ -289,5 +289,4 @@ class NANDA:
         print("🔄 Main process exiting - servers will continue running")
         
         # Force exit the main process while leaving threads running
-        import os
         os._exit(0)

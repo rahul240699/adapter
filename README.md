@@ -28,7 +28,7 @@ export ANTHROPIC_API_KEY="your-api-key-here"\
 export DOMAIN_NAME="your-domain.com"
 ```
 
-### 2. Create Your Own Agent
+### 2. Create Your Own Agent - Development
 
 ```bash
 2.1 Write your improvement logic using the framework you like. Here it is a simple moduule without any llm call. 
@@ -179,6 +179,44 @@ export ANTHROPIC_API_KEY="your-api-key"
 export DOMAIN_NAME="your-domain.com"
 nanda-pirate
 ```
+
+#### Detailed steps to be done for the deployment 
+```bash
+Assuming your customized improvement logic is in langchain_pirate.py
+1. Copy the py and requirements file to a folder of choice in the server
+cmd: scp langchain_pirate.py requirements.txt root@66.175.209.173:/opt/test-agents
+
+2. ssh into the server, ensure the latest software is in the system
+cmd : ssh root@ 66.175.209.173
+      sudo apt update  && sudo apt install python3 python3-pip python3-venv certbot
+
+
+3. Download the certificates into the machine for your domain. You should ensure in  DNS an A record is mapping this domain  chat1.chat39.org to IP address 66.175.209.173
+cmd : sudo certbot certonly --standalone -d chat1.chat39.org 
+
+4. Create and Activate a virtual env in the folder where files are moved in step 1
+cmd : cd /opt/test-agents && python3 -m venv jinoos && source jinoos/bin/activate
+
+5. Install the requirements file 
+cmd : python -m pip install --upgrade pip && pip3 install -r requirements.txt 
+
+6. Ensure the env variables are available either through .env or you can provide export 
+cmd : export ANTHROPIC_API_KEY=my-anthropic-key && export DOMAIN_NAME=my-domain
+
+7. Run the new improvement logic as a batch process 
+cmd : nohup python3 langchain_pirate.py > out.log 2>&1 &
+
+8. Open the log file and you could find the agent enrollment link
+cmd : cat out.log
+
+9. Take the link and go to browser 
+
+```
+
+
+
+
+
 
 The framework will automatically:
 - Generate SSL certificates using Let's Encrypt

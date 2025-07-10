@@ -25,7 +25,7 @@ def read_readme():
 
 setup(
     name="nanda-agent",
-    version="1.0.3",
+    version="1.0.4",
     description="Customizable AI Agent Communication Framework with pluggable message improvement logic",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
@@ -34,7 +34,16 @@ setup(
     url="https://github.com/aidecentralized/nanda-agent-sdk.git",
     packages=find_packages(),
     python_requires=">=3.8",
-    install_requires=read_requirements("requirements.txt"),
+    install_requires=[
+        "flask",
+        "anthropic",
+        "requests",
+        "python-a2a==0.5.6",
+        "mcp",
+        "python-dotenv",
+        "flask-cors",
+        "pymongo"
+    ],
     extras_require={
         "langchain": ["langchain-core", "langchain-anthropic"],
         "crewai": ["crewai", "langchain-anthropic"],

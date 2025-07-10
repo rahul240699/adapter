@@ -25,13 +25,13 @@ def read_readme():
 
 setup(
     name="nanda-agent",
-    version="1.0.0",
+    version="1.0.2",
     description="Customizable AI Agent Communication Framework with pluggable message improvement logic",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     author="NANDA Team",
     author_email="support@nanda.ai",
-    url="https://github.com/nanda-ai/nanda-agent",
+    url="https://github.com/aidecentralized/nanda-agent-sdk.git",
     packages=find_packages(),
     python_requires=">=3.8",
     install_requires=read_requirements("requirements.txt"),
@@ -58,7 +58,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
     ],
-    keywords="ai agent framework langchain crewai anthropic claude",
+    keywords="nanda ai agent framework",
     include_package_data=True,
     zip_safe=False,
 )

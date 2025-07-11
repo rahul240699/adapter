@@ -288,6 +288,11 @@ class NANDA:
         print("📝 Servers are running in background threads")
         print("💡 To run in background, use: python3 script.py &")
         
+
+        print("******************************************************")
+        print("You can assign your agent using this link")
+        print(f"https://chat.nanda-registry.com/landing.html?agentId={agent_id}")
+        print("******************************************************")
         # Keep the main process alive so threads continue running
         try:
             while True:

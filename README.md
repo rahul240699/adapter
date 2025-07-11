@@ -1,15 +1,13 @@
 # NANDA Agent Framework
 
-A customizable improvement logic for your agents,  and easily get registered into NANDA registry
+Bring your agent. Make it persistent, discoverable and interoperable with NANDA.
 
 ## Features
 
-- **Pluggable Message Improvement**: Easily customize how your agents improve messages
-- **Multiple AI Frameworks**: Support for LangChain, CrewAI, and custom logic
-- **Agent-to-Agent Communication**: Built-in A2A communication system
-- **Registry System**: Automatic agent discovery and registration
+- **Multiple AI Frameworks**: Support for LangChain, CrewAI, and any custom logic.
+- **Multi-protocol Communication**: Built-in protocol that allows universal communication
+- **Global Index**: Automatic agent discovery via MIT NANDA Index
 - **SSL Support**: Production-ready with Let's Encrypt certificates
-- **Example Agents**: Ready-to-use examples for common use cases
 
 ## Installation
 

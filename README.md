@@ -183,19 +183,27 @@ nanda-pirate
 #### Detailed steps to be done for the deployment 
 ```bash
 Assuming your customized improvement logic is in langchain_pirate.py
+
+
 1. Copy the py and requirements file to a folder of choice in the server
 cmd: scp langchain_pirate.py requirements.txt root@66.175.209.173:/opt/test-agents
+For AWS Linux machines 
+cmd : ssh -i my-key.pem ec2-user@66.175.209.173
 
 2. ssh into the server, ensure the latest software is in the system
-cmd : ssh root@ 66.175.209.173
+cmd : ssh root@66.175.209.173
       sudo apt update  && sudo apt install python3 python3-pip python3-venv certbot
 
+EC2 cmd : ssh ec2user@66.175.209.173
+      sudo dnf update -y && sudo dnf install -y python3.11 python3.11-pip certbot
 
 3. Download the certificates into the machine for your domain. You should ensure in  DNS an A record is mapping this domain  chat1.chat39.org to IP address 66.175.209.173
 cmd : sudo certbot certonly --standalone -d chat1.chat39.org 
 
 4. Create and Activate a virtual env in the folder where files are moved in step 1
 cmd : cd /opt/test-agents && python3 -m venv jinoos && source jinoos/bin/activate
+
+EC2 cmd: cd /home/ec2-user/test-agents && python3.11 -m venv jinoos && source jinoos/bin/activate
 
 5. Install the requirements file 
 cmd : python -m pip install --upgrade pip && pip3 install -r requirements.txt 

@@ -1,4 +1,4 @@
-# NANDA Agent Framework
+# NANDA Adapter Framework
 
 Bring your agent. Make it persistent, discoverable and interoperable with NANDA.
 

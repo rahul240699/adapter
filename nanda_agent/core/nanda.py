@@ -242,11 +242,11 @@ class NANDA:
         # Configure SSL context if needed
         ssl_context = None
         if ssl:
-            # Set default certificate paths based on domain if not provided
+            # Set default certificate paths from current folder if not provided
             if not cert or not key:
-                cert = f"/etc/letsencrypt/live/{domain}/fullchain.pem"
-                key = f"/etc/letsencrypt/live/{domain}/privkey.pem"
-                print(f"🔒 Using default Let's Encrypt certificates for domain: {domain}")
+                cert = "./fullchain.pem"
+                key = "./privkey.pem"
+                print(f"🔒 Using certificates from current folder: cert={cert}, key={key}")
             
             if os.path.exists(cert) and os.path.exists(key):
                 ssl_context = (cert, key)

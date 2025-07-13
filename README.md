@@ -207,10 +207,14 @@ EC2 cmd: cd /home/ec2-user/test-agents && python3.11 -m venv jinoos && source ji
    
 cmd : sudo certbot certonly --standalone -d chat1.chat39.org 
 
-5. Copy the cert to current folder for access. Ensure the domain has to be changed
+5. Copy the cert to current folder for access and provide required access
+Ensure the domain has to be changed
 
     sudo cp -L /etc/letsencrypt/live/chat1.chat39.org/fullchain.pem .
     sudo cp -L /etc/letsencrypt/live/chat1.chat39.org/privkey.pem .
+    sudo chown $USER:$USER fullchain.pem privkey.pem
+    chmod 600 fullchain.pem privkey.pem
+
 
 6. Install the requirements file 
 cmd : python -m pip install --upgrade pip && pip3 install -r requirements.txt 

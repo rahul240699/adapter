@@ -316,8 +316,7 @@ Contributions are welcome! Please see CONTRIBUTING.md for guidelines.
 
 For issues and questions:
 - GitHub Issues: https://github.com/nanda-ai/nanda-agent/issues
-- Email: support@nanda.ai
-
+  
 ## Changelog
 
 ### v1.0.0

@@ -185,15 +185,15 @@ Assuming your customized improvement logic is in langchain_pirate.py
 
 1. Copy the py and requirements file to a folder of choice in the server
 Get the files from here - https://github.com/aidecentralized/test-workspace (either git clone on EC2 or do below steps:)
-cmd: scp langchain_pirate.py requirements.txt root@66.175.209.173:/opt/test-agents
+cmd: scp langchain_pirate.py requirements.txt root@<IP>:/opt/test-agents
 For AWS Linux machines 
-cmd : scp -i my-key.pem langchain_pirate.py requirements.txt ec2-user@66.175.209.173/home/ec2-user/test-agents
+cmd : scp -i my-key.pem langchain_pirate.py requirements.txt ec2-user@<IP>/home/ec2-user/test-agents
 
 2. ssh into the server, ensure the latest software is in the system
-cmd : ssh root@66.175.209.173
+cmd : ssh root@<IP>
       sudo apt update  && sudo apt install python3 python3-pip python3-venv certbot
 
-EC2 cmd : ssh ec2user@66.175.209.173
+EC2 cmd : ssh ec2user@<IP>
       sudo dnf update -y && sudo dnf install -y python3.11 python3.11-pip certbot
 
 3. Move to the respective folder and create and Activate a virtual env in the folder where files are moved in step 1
@@ -202,9 +202,9 @@ cmd : cd /opt/test-agents && python3 -m venv jinoos && source jinoos/bin/activat
 EC2 cmd: cd /home/ec2-user/test-agents && python3.11 -m venv jinoos && source jinoos/bin/activate
 
 4. Download the certificates into the machine for your domain. 
-(For ex: You should ensure in  DNS an A record is mapping this domain  chat1.chat39.org to IP address 66.175.209.173). Ensure the domain has to be changed
+(For ex: You should ensure in  DNS an A record is mapping this domain <DOMAIN_NAME> to IP address <YOUR_IP>). Ensure the domain has to be changed
    
-cmd : sudo certbot certonly --standalone -d chat1.chat39.org 
+cmd : sudo certbot certonly --standalone -d <YOUR_DOMAIN_NAME> 
 
 5. Copy the cert to current folder for access and provide required access
 Ensure the domain has to be changed

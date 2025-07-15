@@ -209,8 +209,8 @@ cmd : sudo certbot certonly --standalone -d <YOUR_DOMAIN_NAME>
 5. Copy the cert to current folder for access and provide required access
 Ensure the domain has to be changed
 
-    sudo cp -L /etc/letsencrypt/live/chat1.chat39.org/fullchain.pem .
-    sudo cp -L /etc/letsencrypt/live/chat1.chat39.org/privkey.pem .
+    sudo cp -L /etc/letsencrypt/live/<YOUR_DOMAIN_NAME>/fullchain.pem .
+    sudo cp -L /etc/letsencrypt/live/<YOUR_DOMAIN_NAME>/privkey.pem .
     sudo chown $USER:$USER fullchain.pem privkey.pem
     chmod 600 fullchain.pem privkey.pem
 

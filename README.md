@@ -184,6 +184,7 @@ Assuming your customized improvement logic is in langchain_pirate.py
 
 
 1. Copy the py and requirements file to a folder of choice in the server
+Get the files from here - https://github.com/aidecentralized/test-workspace (either git clone on EC2 or do below steps:)
 cmd: scp langchain_pirate.py requirements.txt root@66.175.209.173:/opt/test-agents
 For AWS Linux machines 
 cmd : scp -i my-key.pem langchain_pirate.py requirements.txt ec2-user@66.175.209.173/home/ec2-user/test-agents

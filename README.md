@@ -46,6 +46,7 @@ pip install nanda-agent
 ### 4. Set Your enviroment variables ANTHROPIC_API_KEY (For running your personal hosted agents, need API key and your own domain)
 
 > export ANTHROPIC_API_KEY="your-api-key-here
+
 > export DOMAIN_NAME="<YOUR_DOMAIN_NAME.COM>
 
 ### 5. Run an example agent (langchain_pirate.py)

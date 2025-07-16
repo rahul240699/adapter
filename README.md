@@ -20,27 +20,47 @@ Bring your agent. Make it persistent, discoverable and interoperable with NANDA.
 pip install nanda-agent
 ```
 
-## Quick Start
+## Steps to create a test example using this repo
 
-### 1. Set Your API Key (For running your personal hosted agents, need API key and your own domain)
+### 1. Clone this repository
+
+> git clone github.com/projnanda/adapter
+
+### 2. Setup dependencies
+> cd nanda_agent/examples
+> pip install -r requirements.txt
+
+### 3. Configure your Domain and SSL Certificates (move certificates into current path)
+
+> sudo certbot certonly --standalone -d <YOUR_DOMAIN_NAME.COM>
+> sudo cp -L /etc/letsencrypt/live/<YOUR_DOMAIN_NAME.COM>/fullchain.pem .
+> sudo cp -L /etc/letsencrypt/live/<YOUR_DOMAIN_NAME.COM>/privkey.pem .
+> sudo chown $USER:$USER fullchain.pem privkey.pem
+> chmod 600 fullchain.pem privkey.pem`
+
+### 4. Set Your enviroment variables ANTHROPIC_API_KEY (For running your personal hosted agents, need API key and your own domain)
+
+> export ANTHROPIC_API_KEY="your-api-key-here
+> export DOMAIN_NAME="<YOUR_DOMAIN_NAME.COM>
+
+### 5. Run an example agent (langchain_pirate.py)
+> nohup python3 langchain_pirate.py > out.log 2>&1 &
+
+### 6. Get your enrollment link from Log File
+> cat out.log
+
+
+## Examples for How to create your own agent
+You can create an agent using your custom ReACT framework or any agent package like LangChain, CrewAI etc.
+
+Then, you can deploy to internet of Agents using one line of code via NANDA.
+
+### 1. Custom Agent
 
 ```bash
-export ANTHROPIC_API_KEY="your-api-key-here"\
-export DOMAIN_NAME="your-domain.com"
-```
-
-### 2. Create Your Own Agent - Development
-
-```bash
-2.1 Write your improvement logic using the framework you like. Here it is a simple moduule without any llm call. 
-2.2 In the main(), create your improvement function, initialize NANDA using the improvement function, and start the server with Anthropic key and domain using nanda.start_server_api().
-2.3 In the requirements.txt file add nanda-agent along with other requirements 
+2.1 Write your improvement logic using the framework you like. Here it is a simple moduule without any llm call.
 2.4 Move this file into your server(the domain should match to the IP address) and run this python file in background 
-
-if langchain_pirate.py is python file name, use the below instructions to run in the background: 
-nohup python3 langchain_pirate.py > out.log 2>&1 &
 ```
-
 
 ```python
 #!/usr/bin/env python3
@@ -81,7 +101,7 @@ if __name__ == "__main__":
     main()
 ```
 
-### Using with LangChain
+### Deploy a LangChain Agent
 
 ```python
 from nanda_agent import NANDA
@@ -116,7 +136,7 @@ domain = os.getenv("DOMAIN_NAME")
 nanda.start_server_api(anthropic_key, domain)
 ```
 
-### Using with CrewAI
+### Deploy a CrewAI Agent
 
 ```python
 from nanda_agent import NANDA
@@ -158,65 +178,35 @@ domain = os.getenv("DOMAIN_NAME")
 nanda.start_server_api(anthropic_key, domain)
 ```
 
-### Checkout the examples folder for more details
+## Deploy from Scratch on a barebones machine (Ubuntu on Linode or Amazon Linux on EC2)
 
-
-## Configuration
-
-### Environment Variables
-
-- `ANTHROPIC_API_KEY`: Your Anthropic API key (required)
-- `DOMAIN_NAME`: Domain name for SSL certificates
-- `AGENT_ID`: Custom agent ID (optional, auto-generated if not provided)
-- `PORT`: Agent bridge port (default: 6000)
-- `IMPROVE_MESSAGES`: Enable/disable message improvement (default: true)
-
-### Production Deployment
-
-For production deployment with SSL:
-
-```bash
-export ANTHROPIC_API_KEY="your-api-key"
-export DOMAIN_NAME="your-domain.com"
-nanda-pirate
-```
-
-#### Detailed steps to be done for the deployment 
 ```bash
 Assuming your customized improvement logic is in langchain_pirate.py
 
-
-1. Copy the py and requirements file to a folder of choice in the server
-Get the files from here - https://github.com/aidecentralized/test-workspace (either git clone on EC2 or do below steps:)
-cmd: scp langchain_pirate.py requirements.txt root@<IP>:/opt/test-agents
-For AWS Linux machines 
-cmd : scp -i my-key.pem langchain_pirate.py requirements.txt ec2-user@<IP>/home/ec2-user/test-agents
-
 2. ssh into the server, ensure the latest software is in the system
-cmd : ssh root@<IP>
+Ubuntu Command : ssh root@<IP>
       sudo apt update  && sudo apt install python3 python3-pip python3-venv certbot
 
-EC2 cmd : ssh ec2user@<IP>
+EC2 cmd : ssh -i <YOUR_PEM_KEY> ec2-user@<IP>
       sudo dnf update -y && sudo dnf install -y python3.11 python3.11-pip certbot
 
 3. Move to the respective folder and create and Activate a virtual env in the folder where files are moved in step 1
-cmd : cd /opt/test-agents && python3 -m venv jinoos && source jinoos/bin/activate
+cmd : cd /opt/test-agents && python3 -m venv <YOUR_ENV_NAME> && source <YOUR_ENV_NAME>/bin/activate
 
-EC2 cmd: cd /home/ec2-user/test-agents && python3.11 -m venv jinoos && source jinoos/bin/activate
+EC2 cmd: cd /home/ec2-user/test-agents && python3.11 -m <YOUR_ENV_NAME> jinoos && source <YOUR_ENV_NAME>/bin/activate
 
-4. Download the certificates into the machine for your domain. 
+4. Generate SSL certificates on this machine for your domain.
 (For ex: You should ensure in  DNS an A record is mapping this domain <DOMAIN_NAME> to IP address <YOUR_IP>). Ensure the domain has to be changed
    
 cmd : sudo certbot certonly --standalone -d <YOUR_DOMAIN_NAME> 
 
-5. Copy the cert to current folder for access and provide required access
+5. Move certificates to current folder for access and provide required access
 Ensure the domain has to be changed
 
     sudo cp -L /etc/letsencrypt/live/<YOUR_DOMAIN_NAME>/fullchain.pem .
     sudo cp -L /etc/letsencrypt/live/<YOUR_DOMAIN_NAME>/privkey.pem .
     sudo chown $USER:$USER fullchain.pem privkey.pem
     chmod 600 fullchain.pem privkey.pem
-
 
 6. Install the requirements file 
 cmd : python -m pip install --upgrade pip && pip3 install -r requirements.txt 
@@ -234,17 +224,34 @@ cmd : cat out.log
 
 ```
 
-
-
-
-
-
 The framework will automatically:
 - Generate SSL certificates using Let's Encrypt
 - Set up proper agent registration
 - Configure production-ready logging
 
-## API Endpoints
+
+## Appendix: Configuration Details
+
+### Environment Variables
+You need the following environment details ()
+
+- `ANTHROPIC_API_KEY`: Your Anthropic API key (required)
+- `DOMAIN_NAME`: Domain name for SSL certificates (required)
+- `AGENT_ID`: Custom agent ID (optional, auto-generated if not provided)
+- `PORT`: Agent bridge port (optional, default: 6000)
+- `IMPROVE_MESSAGES`: Enable/disable message improvement (optional, default: true)
+
+### Production Deployment
+
+For production deployment with SSL:
+
+```bash
+export ANTHROPIC_API_KEY="your-api-key"
+export DOMAIN_NAME="your-domain.com"
+nanda-pirate
+```
+
+### API Endpoints
 
 When running with `start_server_api()`, the following endpoints are available:
 
@@ -254,7 +261,7 @@ When running with `start_server_api()`, the following endpoints are available:
 - `POST /api/receive_message` - Receive message from agent
 - `GET /api/render` - Get latest message
 
-## Agent Communication
+### Agent Communication
 
 Agents can communicate with each other using the `@agent_id` syntax:
 
@@ -264,7 +271,7 @@ Agents can communicate with each other using the `@agent_id` syntax:
 
 The message will be improved using your custom logic before being sent.
 
-## Command Line Tools
+### Command Line Tools
 
 ```bash
 # Show help
@@ -279,7 +286,7 @@ nanda-pirate-langchain    # LangChain pirate agent
 nanda-sarcastic           # CrewAI sarcastic agent
 ```
 
-## Architecture
+### Architecture
 
 The NANDA framework consists of:
 
@@ -289,32 +296,7 @@ The NANDA framework consists of:
 4. **A2A Communication**: Agent-to-agent messaging
 5. **Flask API**: External communication interface
 
-## Development
-
-### Creating Custom Agents
-
-1. Create your improvement function
-2. Initialize NANDA with your function
-3. Start the server
-4. Your agent is ready to communicate!
-
-## Examples
-
-The framework includes several example agents:
-
-- **Simple Pirate Agent**: Basic string replacement
-- **LangChain Pirate Agent**: AI-powered pirate transformation
-- **CrewAI Sarcastic Agent**: Team-based sarcastic responses
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Contributing
-
-Contributions are welcome! Please see CONTRIBUTING.md for guidelines.
-
-## Support
+### Support
 
 For issues and questions:
 - GitHub Issues: https://github.com/nanda-ai/nanda-agent/issues

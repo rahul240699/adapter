@@ -1,6 +1,7 @@
 # NANDA Adapter
-Bring your agent. Make it persistent, discoverable and interoperable with NANDA.
-Help us build the Internet of Agents
+Bring your local agent. Make it **persistent**, **discoverable** and **interoperable** on the global internet with NANDA.
+
+Help us build an Open and Vibrant Internet of Agents
 
 ## Features
 

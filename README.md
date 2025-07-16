@@ -1,6 +1,6 @@
-# NANDA Adapter Framework
-
+# NANDA Adapter
 Bring your agent. Make it persistent, discoverable and interoperable with NANDA.
+Help us build the Internet of Agents
 
 ## Features
 

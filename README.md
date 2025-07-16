@@ -9,6 +9,9 @@ Bring your agent. Make it persistent, discoverable and interoperable with NANDA.
 - **Global Index**: Automatic agent discovery via MIT NANDA Index
 - **SSL Support**: Production-ready with Let's Encrypt certificates
 
+  
+<img width="768" height="457" alt="Screenshot 2025-07-15 at 8 41 36 PM" src="https://github.com/user-attachments/assets/f23e32dd-ddda-43a5-a405-03ad4e9dbc5a" />
+
 ## Installation
 
 ### Basic Installation

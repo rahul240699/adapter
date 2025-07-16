@@ -28,14 +28,19 @@ pip install nanda-agent
 
 ### 2. Setup dependencies
 > cd nanda_agent/examples
+
 > pip install -r requirements.txt
 
 ### 3. Configure your Domain and SSL Certificates (move certificates into current path)
 
 > sudo certbot certonly --standalone -d <YOUR_DOMAIN_NAME.COM>
+
 > sudo cp -L /etc/letsencrypt/live/<YOUR_DOMAIN_NAME.COM>/fullchain.pem .
+
 > sudo cp -L /etc/letsencrypt/live/<YOUR_DOMAIN_NAME.COM>/privkey.pem .
+
 > sudo chown $USER:$USER fullchain.pem privkey.pem
+
 > chmod 600 fullchain.pem privkey.pem`
 
 ### 4. Set Your enviroment variables ANTHROPIC_API_KEY (For running your personal hosted agents, need API key and your own domain)

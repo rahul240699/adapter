@@ -12,8 +12,6 @@ from python_a2a import (
     A2AServer, A2AClient, run_server,
     Message, TextContent, MessageRole, ErrorContent, Metadata
 )
-# MongoDB
-from pymongo import MongoClient
 import asyncio
 from mcp_utils import MCPClient
 import base64
@@ -61,23 +59,6 @@ IMPROVE_MESSAGE_PROMPTS = {
 }
 
 SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY") or "bfcb8cec-9d56-4957-8156-bced0bfca532"
-
-# --- MongoDB configuration (for message logging only) ---
-MONGO_URI = os.getenv("MONGODB_URI") or os.getenv("MONGO_URI") or "mongodb+srv://mihirsheth2911:wx1mxUn2788jLdnl@cluster0.fvevtjx.mongodb.net/?retryWrites=true&w=majority"
-
-# Allow custom DB name via env
-MONGO_DBNAME = os.getenv("MONGODB_DB", "iot_agents_db")
-
-try:
-    mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    mongo_client.admin.command("ping")
-    mongo_db = mongo_client[MONGO_DBNAME]
-    messages_col = mongo_db["messages"]
-    USE_MONGO = True
-    print("[agent_bridge] Connected to MongoDB, message logs will be persisted.")
-except Exception as e:
-    print(f"[agent_bridge] WARNING: Could not connect to MongoDB ({e}). Falling back to file-only logging.")
-    USE_MONGO = False
 
 def get_registry_url():
     """Get the registry URL from file or use default"""
@@ -165,16 +146,9 @@ def log_message(conversation_id, path, source, message_text):
     # Create a log file for this conversation if it doesn't exist
     log_filename = os.path.join(LOG_DIR, f"conversation_{conversation_id}.jsonl")
     
-    # Append the log entry to local file (legacy behaviour)
+    # Append the log entry to local file
     with open(log_filename, "a") as log_file:
         log_file.write(json.dumps(log_entry) + "\n")
-
-    # Also insert into MongoDB if available
-    if USE_MONGO:
-        try:
-            messages_col.insert_one(log_entry)
-        except Exception as e:
-            print(f"[agent_bridge] Error writing log to MongoDB: {e}")
     
     print(f"Logged message from {source} in conversation {conversation_id}")
 

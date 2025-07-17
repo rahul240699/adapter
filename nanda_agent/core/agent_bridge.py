@@ -12,8 +12,6 @@ from python_a2a import (
     A2AServer, A2AClient, run_server,
     Message, TextContent, MessageRole, ErrorContent, Metadata
 )
-# MongoDB
-from pymongo import MongoClient
 import asyncio
 from mcp_utils import MCPClient
 import base64
@@ -60,26 +58,7 @@ IMPROVE_MESSAGE_PROMPTS = {
     "default": "Improve the following message to make it more clear, compelling, and professional without changing the core content or adding fictional information. Keep the same overall meaning but enhance the phrasing and structure. Don't make it too verbose - keep it concise but impactful. Return only the improved message without explanations or introductions."
 }
 
-# --- MongoDB configuration (shared with registry) ---
-MONGO_URI = os.getenv("MONGODB_URI") or os.getenv("MONGO_URI") or "mongodb+srv://mihirsheth2911:wx1mxUn2788jLdnl@cluster0.fvevtjx.mongodb.net/?retryWrites=true&w=majority"
-
-# Allow custom DB name via env
-MONGO_DBNAME = os.getenv("MONGODB_DB", "iot_agents_db")
-MCP_REGISTRY = "mcp_registry"
-
 SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY") or "bfcb8cec-9d56-4957-8156-bced0bfca532"
-
-try:
-    mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    mongo_client.admin.command("ping")
-    mongo_db = mongo_client[MONGO_DBNAME]
-    mcp_registry_col = mongo_db[MCP_REGISTRY]
-    messages_col = mongo_db["messages"]
-    USE_MONGO = True
-    print("[agent_bridge] Connected to MongoDB, message logs will be persisted.")
-except Exception as e:
-    print(f"[agent_bridge] WARNING: Could not connect to MongoDB ({e}). Falling back to file-only logging.")
-    USE_MONGO = False
 
 def get_registry_url():
     """Get the registry URL from file or use default"""
@@ -167,16 +146,9 @@ def log_message(conversation_id, path, source, message_text):
     # Create a log file for this conversation if it doesn't exist
     log_filename = os.path.join(LOG_DIR, f"conversation_{conversation_id}.jsonl")
     
-    # Append the log entry to local file (legacy behaviour)
+    # Append the log entry to local file
     with open(log_filename, "a") as log_file:
         log_file.write(json.dumps(log_entry) + "\n")
-
-    # Also insert into MongoDB if available
-    if USE_MONGO:
-        try:
-            messages_col.insert_one(log_entry)
-        except Exception as e:
-            print(f"[agent_bridge] Error writing log to MongoDB: {e}")
     
     print(f"Logged message from {source} in conversation {conversation_id}")
 
@@ -384,34 +356,39 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
         return f"Error sending message to {target_agent_id}: {e}"
 
 
-def get_mcp_server_url(requested_registry: str,qualified_name: str) -> Optional[str]:
+def get_mcp_server_url(requested_registry: str, qualified_name: str) -> Optional[str]:
     """
-    Query MongoDB to find MCP server URL based on qualifiedName.
+    Query registry endpoint to find MCP server URL based on qualifiedName.
     
     Args:
+        requested_registry (str): The registry provider to search in
         qualified_name (str): The qualifiedName to search for (e.g. "@opgginc/opgg-mcp")
         
     Returns:
         Optional[tuple]: Tuple of (endpoint, config_json, registry_name) if found, None otherwise
     """
     try:
-        if not USE_MONGO:
-            print("MongoDB not available")
-            return None
+        registry_url = get_registry_url()
+        endpoint_url = f"{registry_url}/get_mcp_registry"
         
-        print(f"Querying MCP registry DB:{mcp_registry_col} for {qualified_name}")
-
-        result = mcp_registry_col.find_one({"qualified_name": qualified_name,"registry_provider":{"$regex": f"^{requested_registry}$", "$options": "i"}})
+        print(f"Querying MCP registry endpoint: {endpoint_url} for {qualified_name}")
         
-        if result:
+        # Make request to the registry endpoint
+        response = requests.get(endpoint_url, params={
+            'registry_provider': requested_registry,
+            'qualified_name': qualified_name
+        })
+        
+        if response.status_code == 200:
+            result = response.json()
             endpoint = result.get("endpoint")
             config = result.get("config")
-            config_json = json.loads(config)
+            config_json = json.loads(config) if isinstance(config, str) else config
             registry_name = result.get("registry_provider")
             print(f"Found MCP server URL for {qualified_name}: {endpoint} && {config_json}")
             return endpoint, config_json, registry_name
         else:
-            print(f"No MCP server found for qualified_name: {qualified_name}")
+            print(f"No MCP server found for qualified_name: {qualified_name} (Status: {response.status_code})")
             return None
             
     except Exception as e:

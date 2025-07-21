@@ -9,3 +9,5 @@ nanda_agent/__pycache__
 # Build artifacts
 dist/
 *.egg-info/
+
+nanda_adapter/core/__pycache__

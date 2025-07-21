@@ -18,7 +18,7 @@ Help us build an Open and Vibrant Internet of Agents
 ### Basic Installation
 
 ```bash
-pip install nanda-agent
+pip install nanda-adapter
 ```
 
 ## Steps to create a test example using this repo
@@ -71,7 +71,7 @@ Then, you can deploy to internet of Agents using one line of code via NANDA.
 
 ```python
 #!/usr/bin/env python3
-from nanda_agent import NANDA
+from nanda_adapter import NANDA
 import os
 
 def create_custom_improvement():
@@ -282,10 +282,10 @@ The message will be improved using your custom logic before being sent.
 
 ```bash
 # Show help
-nanda-agent --help
+nanda-adapter --help
 
 # List available examples
-nanda-agent --list-examples
+nanda-adapter --list-examples
 
 # Run specific examples
 nanda-pirate              # Simple pirate agent
@@ -306,7 +306,7 @@ The NANDA framework consists of:
 ### Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/nanda-ai/nanda-agent/issues
+- GitHub Issues: https://github.com/nanda-ai/nanda-adapter/issues
   
 ## Changelog
 

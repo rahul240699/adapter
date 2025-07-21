@@ -427,9 +427,15 @@ def form_mcp_server_url(url: str, config: dict, registry_name: str) -> Optional[
 async def run_mcp_query(query: str, updated_url: str) -> str:
     try:
         print(f"In run_mcp_query: MCP query: {query} on {updated_url}")
+        
+        # Determine transport type based on URL path (before query parameters)
+        from urllib.parse import urlparse
+        parsed_url = urlparse(updated_url)
+        transport_type = "sse" if parsed_url.path.endswith("/sse") else "http"
+        print(f"Using transport type: {transport_type} for path: {parsed_url.path}")
 
         async with MCPClient() as client:
-            result = await client.process_query(query, updated_url)
+            result = await client.process_query(query, updated_url, transport_type)
             return result
     except Exception as e:
         error_msg = f"Error processing MCP query: {str(e)}"

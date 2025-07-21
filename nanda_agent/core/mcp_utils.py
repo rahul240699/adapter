@@ -52,10 +52,12 @@ class MCPClient:
             # Create new connection based on transport type
             if transport_type.lower() == "sse":
                 transport = await self.exit_stack.enter_async_context(sse_client(mcp_server_url))
+                # SSE client returns only 2 values: read_stream, write_stream
+                read_stream, write_stream = transport
             else:
                 transport = await self.exit_stack.enter_async_context(streamablehttp_client(mcp_server_url))
-            
-            read_stream, write_stream, _ = transport
+                # HTTP client returns 3 values: read_stream, write_stream, session
+                read_stream, write_stream, _ = transport
             
             # Create new session
             self.session = await self.exit_stack.enter_async_context(

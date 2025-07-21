@@ -9,7 +9,7 @@ def main():
     print("Create custom agents with pluggable message improvement logic")
     print()
     print("Usage:")
-    print("  from nanda_agent import NANDA")
+    print("  from nanda_adapter import NANDA")
     print("  ")
     print("  def my_improvement_logic(message_text: str) -> str:")
     print("      return f'Improved: {message_text}'")

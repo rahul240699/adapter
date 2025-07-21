@@ -24,14 +24,14 @@ def read_readme():
     return "NANDA Agent Framework - Customizable AI Agent Communication System"
 
 setup(
-    name="nanda-agent",
-    version="1.0.6",
+    name="nanda-adapter",
+    version="1.0.0",
     description="Customizable AI Agent Communication Framework with pluggable message improvement logic",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     author="NANDA Team",
     author_email="support@nanda.ai",
-    url="https://github.com/aidecentralized/nanda-agent-sdk.git",
+    url="https://github.com/projnanda/adapter.git",
     packages=find_packages(),
     python_requires=">=3.8",
     install_requires=[

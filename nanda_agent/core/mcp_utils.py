@@ -41,12 +41,23 @@ class MCPClient:
         ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "your-key"
         self.anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
 
-    async def connect_to_mcp_and_get_tools(self, mcp_server_url):
-        """Connect to MCP server and return available tools"""
+    async def connect_to_mcp_and_get_tools(self, mcp_server_url, transport_type="http"):
+        """Connect to MCP server and return available tools
+        
+        Args:
+            mcp_server_url: URL of the MCP server
+            transport_type: Either 'http' or 'sse' for transport protocol
+        """
         try:
-            # Create new connection
-            transport = await self.exit_stack.enter_async_context(streamablehttp_client(mcp_server_url))
-            read_stream, write_stream, _ = transport
+            # Create new connection based on transport type
+            if transport_type.lower() == "sse":
+                transport = await self.exit_stack.enter_async_context(sse_client(mcp_server_url))
+                # SSE client returns only 2 values: read_stream, write_stream
+                read_stream, write_stream = transport
+            else:
+                transport = await self.exit_stack.enter_async_context(streamablehttp_client(mcp_server_url))
+                # HTTP client returns 3 values: read_stream, write_stream, session
+                read_stream, write_stream, _ = transport
             
             # Create new session
             self.session = await self.exit_stack.enter_async_context(
@@ -61,11 +72,11 @@ class MCPClient:
             print(f"Error connecting to MCP server: {e}")
             return None
 
-    async def process_query(self, query, mcp_server_url):
+    async def process_query(self, query, mcp_server_url, transport_type="http"):
         try:
-            print(f"In MCP_utils process query: {query} on {mcp_server_url}")
+            print(f"In MCP_utils process query: {query} on {mcp_server_url} using {transport_type}")
             # Connect and get tools
-            tools = await self.connect_to_mcp_and_get_tools(mcp_server_url)
+            tools = await self.connect_to_mcp_and_get_tools(mcp_server_url, transport_type)
             if not tools:
                 return "Failed to connect to MCP server"
 

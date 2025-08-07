@@ -111,7 +111,7 @@ if __name__ == "__main__":
 ### Deploy a LangChain Agent
 
 ```python
-from nanda_agent import NANDA
+from nanda_adapter import NANDA
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_anthropic import ChatAnthropic
@@ -146,7 +146,7 @@ nanda.start_server_api(anthropic_key, domain)
 ### Deploy a CrewAI Agent
 
 ```python
-from nanda_agent import NANDA
+from nanda_adapter import NANDA
 from crewai import Agent, Task, Crew
 from langchain_anthropic import ChatAnthropic
 
@@ -200,7 +200,7 @@ EC2 cmd : ssh -i <YOUR_PEM_KEY> ec2-user@<IP>
 3. Move to the respective folder and create and Activate a virtual env in the folder where files are moved in step 1
 cmd : cd /opt/test-agents && python3 -m venv <YOUR_ENV_NAME> && source <YOUR_ENV_NAME>/bin/activate
 
-EC2 cmd: cd /home/ec2-user/test-agents && python3.11 -m <YOUR_ENV_NAME> jinoos && source <YOUR_ENV_NAME>/bin/activate
+EC2 cmd: cd /home/ec2-user/test-agents && python3.11 -m venv <YOUR_ENV_NAME> && source <YOUR_ENV_NAME>/bin/activate
 
 4. Generate SSL certificates on this machine for your domain.
 (For ex: You should ensure in  DNS an A record is mapping this domain <DOMAIN_NAME> to IP address <YOUR_IP>). Ensure the domain has to be changed

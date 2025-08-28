@@ -213,6 +213,30 @@ def list_agents():
         return jsonify({"error": str(e)}), 500
 
 
+TX = os.getenv("TRANSACTIONS_BASE_URL")
+AUTH = os.getenv("TX_AUTH_TOKEN")
+
+@app.route('/api/tx/quotes', methods=['POST'])
+def tx_quotes():
+    body = request.json or {}
+    r = requests.post(f"{TX}/v1/quotes", json=body,
+                      headers=({'Authorization': f"Bearer {AUTH}"} if AUTH else {}))
+    return (r.text, r.status_code, {'Content-Type': 'application/json'})
+
+@app.route('/api/tx/invoices', methods=['POST'])
+def tx_invoices():
+    body = request.json or {}
+    r = requests.post(f"{TX}/v1/invoices", json=body,
+                      headers=({'Authorization': f"Bearer {AUTH}"} if AUTH else {}))
+    return (r.text, r.status_code, {'Content-Type': 'application/json'})
+
+@app.route('/api/tx/invoices/<inv_id>/pay', methods=['POST'])
+def tx_pay(inv_id):
+    body = request.json or {}
+    r = requests.post(f"{TX}/v1/invoices/{inv_id}/pay", json=body,
+                      headers=({'Authorization': f"Bearer {AUTH}"} if AUTH else {}))
+    return (r.text, r.status_code, {'Content-Type': 'application/json'})
+
 @app.route('/api/receive_message', methods=['POST'])
 def receive_message():
     """Receive a message from the agent bridge and display it"""

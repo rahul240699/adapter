@@ -219,16 +219,39 @@ def receive_message():
     try:
         data = request.json
         message = data.get('message', '')
-        from_agent = data.get('from_agent', '')
+        # Be tolerant to different field names coming from various bridges/clients
+        from_agent = (
+            data.get('from_agent')
+            or data.get('sender_id')
+            or data.get('sender')
+            or ''
+        )
         conversation_id = data.get('conversation_id', '')
         timestamp = data.get('timestamp', '')
-       
-        reg_url = get_registry_url()
-        sender_name = requests.get(
-            f"{reg_url}/sender/{from_agent}",
-            verify=False  # For development with self-signed certs
-        )
-        sender_name = sender_name.json().get("sender_name")
+
+        # Resolve a human-friendly sender name if we have an agent id
+        sender_name = None
+        if from_agent:
+            try:
+                reg_url = get_registry_url()
+                print(f"Resolving sender name for '{from_agent}' via: {reg_url}/sender/{from_agent}")
+                resp = requests.get(
+                    f"{reg_url}/sender/{from_agent}",
+                    verify=False  # For development with self-signed certs
+                )
+                print(f"Sender lookup status: {resp.status_code}")
+                if resp.status_code == 200:
+                    body = resp.json() or {}
+                    sender_name = body.get("sender_name")
+                    if not sender_name:
+                        print(f"Sender name not found in registry response body: {body}")
+                else:
+                    print(f"Sender lookup failed: {resp.text}")
+            except Exception as e:
+                print(f"Warning: could not resolve sender name for '{from_agent}': {e}")
+        # Fallback: use from_agent as name when lookup fails
+        if not sender_name:
+            sender_name = from_agent or None
 
         print("\n--- New message received ---")
         print(f"From: {from_agent}")
@@ -242,10 +265,13 @@ def receive_message():
         message_file = os.path.abspath(f"latest_message_{agent_id}.json")
 
         # Create a payload the client can render
+        # Include a standard `sender` field for UI compatibility, with sensible fallbacks
         payload = {
             "message": message,
             "from_agent": from_agent,
+            "sender_id": from_agent or None,
             "sender_name": sender_name,
+            "sender": sender_name or from_agent or "Unknown",
             "conversation_id": conversation_id,
             "timestamp": timestamp
         }

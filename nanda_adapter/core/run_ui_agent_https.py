@@ -225,9 +225,9 @@ def receive_message():
        
         reg_url = get_registry_url()
         sender_name = requests.get(
-                f"{reg_url}/sender/{from_agent}",
-                verify=False  # For development with self-signed certs
-            )
+            f"{reg_url}/sender/{from_agent}",
+            verify=False  # For development with self-signed certs
+        )
         sender_name = sender_name.json().get("sender_name")
 
         print("\n--- New message received ---")
@@ -237,20 +237,29 @@ def receive_message():
         print(f"Timestamp: {timestamp}")
         print(f"Sender Name: {sender_name}")
         print("----------------------------\n")
-        
+
         # Create a unique file for each agent to avoid conflicts when running multiple agents
-        message_file = f"latest_message.json"
-        
-        # Create a JavaScript snippet that the client can use to display this
+        message_file = os.path.abspath(f"latest_message_{agent_id}.json")
+
+        # Create a payload the client can render
+        payload = {
+            "message": message,
+            "from_agent": from_agent,
+            "sender_name": sender_name,
+            "conversation_id": conversation_id,
+            "timestamp": timestamp
+        }
         with open(message_file, "w") as f:
-            json.dump({
-                "message": message,
-                "from_agent": from_agent,
-                "sender_name": sender_name,
-                "conversation_id": conversation_id,
-                "timestamp": timestamp
-            }, f)
-        
+            json.dump(payload, f)
+        print(f"📝 Latest message file written at: {message_file}")
+
+        # Broadcast to any registered SSE clients
+        try:
+            for cid in list(client_queues.keys()):
+                add_message_to_queue(cid, payload)
+        except Exception as e:
+            print(f"SSE broadcast error: {e}")
+
         return jsonify({"status": "received"})
     except Exception as e:
         print(f"Error processing received message: {e}")
@@ -261,17 +270,48 @@ def receive_message():
 def render_on_ui():
     try:
         # Use agent-specific message file
-        message_file = f"latest_message.json"
-        
+        message_file = os.path.abspath(f"latest_message_{agent_id}.json")
+
         if not os.path.exists(message_file):
             return jsonify({})
         else:
-            latest_message = json.load(open(message_file))
+            with open(message_file, "r") as f:
+                latest_message = json.load(f)
             # Remove the original file
             os.remove(message_file)
             return jsonify(latest_message)
     except Exception as e:
-        print(f"No latest message found")
+        print("No latest message found")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/messages/latest', methods=['GET'])
+def messages_latest():
+    """Debug endpoint: return latest message without deleting the file"""
+    try:
+        message_file = os.path.abspath(f"latest_message_{agent_id}.json")
+        if not os.path.exists(message_file):
+            return jsonify({})
+        with open(message_file, "r") as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/messages/register', methods=['POST'])
+def register_client():
+    """Register an SSE client to receive streamed messages"""
+    try:
+        data = request.json or {}
+        cid = data.get('client_id') or request.args.get('client_id')
+        if not cid:
+            return jsonify({"error": "client_id required"}), 400
+        if cid not in client_queues:
+            client_queues[cid] = {
+                'queue': Queue(),
+                'event': Event()
+            }
+        return jsonify({"status": "registered", "client_id": cid})
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 

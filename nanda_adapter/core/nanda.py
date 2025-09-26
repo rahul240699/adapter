@@ -263,7 +263,7 @@ class NANDA:
         def start_flask_server():
             """Start the Flask API server in a separate thread"""
             try:
-                print(f"🚀 Starting Flask API server on port {api_port}...")
+                print(f"� Starting Flask API server on port {api_port}...")
                 run_ui_agent_https.app.run(
                     host='0.0.0.0', 
                     port=api_port, 

@@ -90,9 +90,7 @@ def register_with_registry(agent_id, agent_url, api_url):
             "api_url": api_url
         }
         print(f"Registering agent {agent_id} with URL {agent_url} at registry {registry_url}...")
-        response = requests.post(
-            f"{registry_url}/register", json=data, verify=False
-        )
+        response = requests.post(f"{registry_url}/register", json=data)
         if response.status_code == 200:
             print(f"Agent {agent_id} registered successfully")
             return True
@@ -108,9 +106,7 @@ def lookup_agent(agent_id):
     registry_url = get_registry_url()
     try:
         print(f"Looking up agent {agent_id} in registry {registry_url}...")
-        response = requests.get(
-            f"{registry_url}/lookup/{agent_id}", verify=False
-        )
+        response = requests.get(f"{registry_url}/lookup/{agent_id}")
         if response.status_code == 200:
             agent_url = response.json().get("agent_url")
             print(f"Found agent {agent_id} at URL: {agent_url}")
@@ -126,9 +122,7 @@ def list_registered_agents():
     registry_url = get_registry_url()
     try:
         print(f"Requesting list of agents from registry {registry_url}...")
-        response = requests.get(
-            f"{registry_url}/list", verify=False
-        )
+        response = requests.get(f"{registry_url}/list")
         if response.status_code == 200:
             agents = response.json()
             return agents
@@ -383,7 +377,7 @@ def get_mcp_server_url(requested_registry: str, qualified_name: str) -> Optional
         response = requests.get(endpoint_url, params={
             'registry_provider': requested_registry,
             'qualified_name': qualified_name
-        }, verify=False)
+        })
         
         if response.status_code == 200:
             result = response.json()

@@ -222,12 +222,14 @@ def receive_message():
         # Be tolerant to different field names coming from various bridges/clients
         # Prefer a provided `source_agent` when present (explicit display/source override)
         provided_source = data.get('source_agent')
-        from_agent = (
+        raw_from = (
             data.get('from_agent')
             or data.get('sender_id')
             or data.get('sender')
             or ''
         )
+        # from_agent should always reflect the author of the message
+        from_agent = provided_source or raw_from
         conversation_id = data.get('conversation_id', '')
         timestamp = data.get('timestamp', '')
 

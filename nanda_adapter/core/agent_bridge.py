@@ -59,10 +59,16 @@ IMPROVE_MESSAGE_PROMPTS = {
 }
 
 SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY") or "bfcb8cec-9d56-4957-8156-bced0bfca532"
+REGISTRY_VERIFY_SSL = os.getenv("REGISTRY_VERIFY_SSL", "true").lower() in ("true", "1", "yes", "y")
 
 def get_registry_url():
     """Get the registry URL from file or use default"""
     try:
+        # Prefer environment variable if provided
+        env_url = os.getenv("REGISTRY_URL")
+        if env_url:
+            print(f"Using registry URL from env: {env_url}")
+            return env_url
         if os.path.exists("registry_url.txt"):
             with open("registry_url.txt", "r") as f:
                 registry_url = f.read().strip()
@@ -90,7 +96,9 @@ def register_with_registry(agent_id, agent_url, api_url):
             "api_url": api_url
         }
         print(f"Registering agent {agent_id} with URL {agent_url} at registry {registry_url}...")
-        response = requests.post(f"{registry_url}/register", json=data)
+        response = requests.post(
+            f"{registry_url}/register", json=data, verify=REGISTRY_VERIFY_SSL
+        )
         if response.status_code == 200:
             print(f"Agent {agent_id} registered successfully")
             return True
@@ -106,7 +114,9 @@ def lookup_agent(agent_id):
     registry_url = get_registry_url()
     try:
         print(f"Looking up agent {agent_id} in registry {registry_url}...")
-        response = requests.get(f"{registry_url}/lookup/{agent_id}")
+        response = requests.get(
+            f"{registry_url}/lookup/{agent_id}", verify=REGISTRY_VERIFY_SSL
+        )
         if response.status_code == 200:
             agent_url = response.json().get("agent_url")
             print(f"Found agent {agent_id} at URL: {agent_url}")
@@ -122,7 +132,9 @@ def list_registered_agents():
     registry_url = get_registry_url()
     try:
         print(f"Requesting list of agents from registry {registry_url}...")
-        response = requests.get(f"{registry_url}/list")
+        response = requests.get(
+            f"{registry_url}/list", verify=REGISTRY_VERIFY_SSL
+        )
         if response.status_code == 200:
             agents = response.json()
             return agents
@@ -377,7 +389,7 @@ def get_mcp_server_url(requested_registry: str, qualified_name: str) -> Optional
         response = requests.get(endpoint_url, params={
             'registry_provider': requested_registry,
             'qualified_name': qualified_name
-        })
+        }, verify=REGISTRY_VERIFY_SSL)
         
         if response.status_code == 200:
             result = response.json()
@@ -474,9 +486,9 @@ def handle_external_message(msg_text, conversation_id, msg):
         in_message = False
         for line in lines[1:]:
             if line.startswith('__FROM_AGENT__'):
-                from_agent = line[len('__FROM_AGENT__'):]
+                from_agent = line[len('__FROM_AGENT__'):].strip()
             elif line.startswith('__TO_AGENT__'):
-                to_agent = line[len('__TO_AGENT__'):]
+                to_agent = line[len('__TO_AGENT__'):].strip()
             elif line == '__MESSAGE_START__':
                 in_message = True
             elif line == '__MESSAGE_END__':
@@ -539,6 +551,7 @@ def handle_external_message(msg_text, conversation_id, msg):
 
         # Send the reply back to the sender agent
         if from_agent:
+            print(f"Attempting to send reply to from_agent='{from_agent}'")
             send_metadata = {
                 'path': current_path,
                 'source_agent': responder_id,

@@ -1,7 +1,7 @@
 # agent_bridge.py
 import os
 import uuid
-import printback
+import traceback
 import json
 import threading
 import requests
@@ -48,11 +48,11 @@ registered_ui_clients = set()
 LOG_DIR = os.getenv("LOG_DIR", "conversation_logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# print logging toggle for verbose flow diagnostics
-print_LOGGING = os.getenv("print_LOGGING", "true").lower() in ("true", "1", "yes", "y")
+# Trace logging toggle for verbose flow diagnostics
+TRACE_LOGGING = os.getenv("TRACE_LOGGING", "true").lower() in ("true", "1", "yes", "y")
 
-def print(where: str, **data):
-    if not print_LOGGING:
+def trace(where: str, **data):
+    if not TRACE_LOGGING:
         return
     try:
         # Keep it compact; avoid huge payloads
@@ -60,9 +60,9 @@ def print(where: str, **data):
         for k, v in (data or {}).items():
             s = str(v)
             preview[k] = s if len(s) <= 400 else s[:400] + "…"
-        print(f"[print][{get_agent_id()}][{where}] {json.dumps(preview)}", flush=True)
+        print(f"[TRACE][{get_agent_id()}][{where}] {json.dumps(preview)}", flush=True)
     except Exception as _e:
-        print(f"[print][{get_agent_id()}][{where}] (unserializable data)", flush=True)
+        print(f"[TRACE][{get_agent_id()}][{where}] (unserializable data)", flush=True)
 
 # Configure system prompts based on agent ID (examples from the original code)
 SYSTEM_PROMPTS = {
@@ -223,7 +223,7 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
     except Exception as e:
         agent_id = get_agent_id()
         print(f"Agent {agent_id}: Anthropic SDK error:", e, flush=True)
-        printback.print_exc()
+        traceback.print_exc()
     return None
 
 def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional[str]:
@@ -250,7 +250,7 @@ def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional
     except Exception as e:
         agent_id = get_agent_id()
         print(f"Agent {agent_id}: Anthropic SDK error:", e, flush=True)
-        printback.print_exc()
+        traceback.print_exc()
     return None
 
 def improve_message(message_text: str, conversation_id: str, current_path: str, additional_prompt: str=None) -> str:
@@ -310,21 +310,23 @@ def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name:
     try:
         print(f"Sending message to UI client: {message_text[:50]}...")
         # Include standard fields for UI compatibility
+        # from_agent should ALWAYS be the actual author/sender of the message
+        message_author = source_agent or from_agent
         payload = {
             "message": message_text,
-            # Ensure from_agent always reflects the author of the message
-            "from_agent": (source_agent or from_agent),
-            "sender_id": sender_id or (source_agent or from_agent) or (os.getenv("AGENT_ID") or ""),
-            "sender": sender_name or (source_agent or from_agent) or (os.getenv("AGENT_ID") or "Unknown"),
+            "from_agent": message_author,  # Always the actual sender/author
+            "sender_id": sender_id or message_author or (os.getenv("AGENT_ID") or ""),
+            "sender": sender_name or message_author or (os.getenv("AGENT_ID") or "Unknown"),
             "sender_name": sender_name,
-            "source_agent": source_agent or from_agent,
+            "source_agent": message_author,
             "direction": direction,  # 'incoming' | 'outgoing'
             "target_agent": target_agent,
             "conversation_id": conversation_id,
             "timestamp": datetime.now().isoformat()
         }
 
-        print("send_to_ui_client:request", url=ui_client_url, direction=direction, source_agent=source_agent or from_agent, target_agent=target_agent, conversation_id=conversation_id)
+        print(f"🔄 send_to_ui_client: direction={direction}, message_author={message_author}, target={target_agent}")
+        trace("send_to_ui_client:request", url=ui_client_url, direction=direction, source_agent=message_author, target_agent=target_agent, conversation_id=conversation_id)
         response = requests.post(
             ui_client_url,
             json=payload,
@@ -332,15 +334,15 @@ def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name:
             verify=False  # disable SSL verification for local/dev
         )
         if response.status_code == 200:
-            print("send_to_ui_client:ok", status=response.status_code)
+            trace("send_to_ui_client:ok", status=response.status_code)
             print(f"Successfully sent message to UI client")
             return True
         else:
-            print("send_to_ui_client:fail", status=response.status_code, body=response.text)
+            trace("send_to_ui_client:fail", status=response.status_code, body=response.text)
             print(f"Failed to send message to UI client: {response.status_code} {response.text}")
             return False
     except Exception as e:
-        print("send_to_ui_client:error", error=str(e))
+        trace("send_to_ui_client:error", error=str(e))
         print(f"Error sending to UI client: {e}")
         return False
 
@@ -553,15 +555,16 @@ def handle_external_message(msg_text, conversation_id, msg):
         # Forward incoming message to UI if enabled (for visibility)
         if UI_MODE:
             print("Forwarding message to UI client")
+            # For incoming messages: from_agent is the sender, target_agent is the receiver
             send_to_ui_client(
                 formatted_text,
-                from_agent,
+                from_agent,  # The external sender
                 conversation_id,
-                source_agent=from_agent,
+                source_agent=from_agent,  # The external sender
                 direction="incoming",
-                target_agent=responder_id
+                target_agent=responder_id  # The receiving agent (us)
             )
-            print("handle_external_message:forwarded_to_ui")
+            trace("handle_external_message:forwarded_to_ui")
         else:
             # Mirror to local terminal when not in UI mode
             try:
@@ -610,23 +613,24 @@ def handle_external_message(msg_text, conversation_id, msg):
             }
             send_result = send_to_agent(from_agent, reply_text, conversation_id, send_metadata)
             print(f"Reply send result to {from_agent}: {send_result}")
-            print("handle_external_message:reply_sent", result=send_result)
+            trace("handle_external_message:reply_sent", result=send_result)
 
         # Also forward the reply to UI if enabled
         if UI_MODE:
             try:
+                # For outgoing messages: from_agent is us (the sender), target_agent is the original sender
                 send_to_ui_client(
                     f"TO {from_agent}: {reply_text}",
-                    responder_id,
+                    responder_id,  # We are the sender of the reply
                     conversation_id,
-                    source_agent=responder_id,
+                    source_agent=responder_id,  # We are the sender of the reply
                     direction="outgoing",
-                    target_agent=from_agent
+                    target_agent=from_agent  # The original sender is now the target
                 )
             except Exception as e:
                 print(f"Error forwarding reply to UI: {e}")
             else:
-                print("handle_external_message:reply_forwarded_to_ui")
+                trace("handle_external_message:reply_forwarded_to_ui")
 
         # Return a response containing the reply content
         print("handle_external_message:returning")

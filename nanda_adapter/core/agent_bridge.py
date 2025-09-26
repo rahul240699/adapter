@@ -495,73 +495,49 @@ def handle_external_message(msg_text, conversation_id, msg):
         print("Message Text: ", message_content)
         print("UI MODE: ", UI_MODE)
 
-        # Forward incoming message to UI if enabled (for visibility)
+        # If in UI mode, forward to UI client(s) and acknowledge
         if UI_MODE:
-            print(f"Forwarding message to UI client")
+            print("Forwarding message to UI client")
             send_to_ui_client(formatted_text, from_agent, conversation_id)
+            agent_id = get_agent_id()
+            return Message(
+                role=MessageRole.AGENT,
+                content=TextContent(text=f"Message received by Agent {agent_id}"),
+                parent_message_id=msg.message_id,
+                conversation_id=conversation_id
+            )
 
-        # Also mirror to local terminal if UI mode is off
-        if not UI_MODE:
-            try:
-                terminal_client = A2AClient(LOCAL_TERMINAL_URL, timeout=10)
-                terminal_client.send_message_threaded(
-                    Message(
-                        role=MessageRole.USER,
-                        content=TextContent(text=formatted_text),
-                        conversation_id=conversation_id,
-                        metadata=Metadata(custom_fields={
-                            'is_from_peer': True,
-                            'is_user_message': True,
-                            'source_agent': from_agent,
-                            'forwarded_by_bridge': True
-                        })
-                    )
-                )
-            except Exception as e:
-                print(f"Error forwarding to local terminal: {e}")
-
-        # Generate a reply using the agent's reasoning function (Claude or custom)
-        responder_id = get_agent_id()
-        current_path = responder_id  # minimal path context for logging
-        system_prompt = (
-            "You are an autonomous agent replying to another agent. "
-            "Provide a concise, helpful response. If the request is unclear, "
-            "respond with your best helpful assumption. Avoid pleasantries."
-        )
-
+        # Otherwise, forward to local terminal and acknowledge
         try:
-            reply_text = call_claude(message_content, "", conversation_id, current_path, system_prompt)
+            terminal_client = A2AClient(LOCAL_TERMINAL_URL, timeout=10)
+            terminal_client.send_message_threaded(
+                Message(
+                    role=MessageRole.USER,
+                    content=TextContent(text=formatted_text),
+                    conversation_id=conversation_id,
+                    metadata=Metadata(custom_fields={
+                        'is_from_peer': True,
+                        'is_user_message': True,
+                        'source_agent': from_agent,
+                        'forwarded_by_bridge': True
+                    })
+                )
+            )
+            agent_id = get_agent_id()
+            return Message(
+                role=MessageRole.AGENT,
+                content=TextContent(text=f"Message received by Agent {agent_id}"),
+                parent_message_id=msg.message_id,
+                conversation_id=conversation_id
+            )
         except Exception as e:
-            print(f"Error generating reply via Claude: {e}")
-            reply_text = None
-
-        if not reply_text or not reply_text.strip():
-            reply_text = "Acknowledged."
-
-        # Send the reply back to the sender agent
-        if from_agent:
-            send_metadata = {
-                'path': current_path,
-                'source_agent': responder_id,
-                'is_from_peer': True
-            }
-            send_result = send_to_agent(from_agent, reply_text, conversation_id, send_metadata)
-            print(f"Reply send result to {from_agent}: {send_result}")
-
-        # Also forward the reply to UI if enabled
-        if UI_MODE:
-            try:
-                send_to_ui_client(f"TO {from_agent}: {reply_text}", responder_id, conversation_id)
-            except Exception as e:
-                print(f"Error forwarding reply to UI: {e}")
-
-        # Return a response containing the reply content
-        return Message(
-            role=MessageRole.AGENT,
-            content=TextContent(text=f"[AGENT {responder_id} -> {from_agent}] {reply_text}"),
-            parent_message_id=msg.message_id,
-            conversation_id=conversation_id
-        )
+            print(f"Error forwarding to local terminal: {e}")
+            return Message(
+                role=MessageRole.AGENT,
+                content=ErrorContent(message=f"Failed to deliver message: {str(e)}"),
+                parent_message_id=msg.message_id,
+                conversation_id=conversation_id
+            )
             
     except Exception as e:
         print(f"Error parsing external message: {e}")

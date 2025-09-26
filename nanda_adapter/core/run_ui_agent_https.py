@@ -219,44 +219,16 @@ def receive_message():
     try:
         data = request.json
         message = data.get('message', '')
-        # Be tolerant to different field names coming from various bridges/clients
-        # Prefer a provided `source_agent` when present (explicit display/source override)
-        provided_source = data.get('source_agent')
-        raw_from = (
-            data.get('from_agent')
-            or data.get('sender_id')
-            or data.get('sender')
-            or ''
-        )
-        # from_agent should always reflect the author of the message
-        from_agent = provided_source or raw_from
+        from_agent = data.get('from_agent', '')
         conversation_id = data.get('conversation_id', '')
         timestamp = data.get('timestamp', '')
-
-        # Resolve a human-friendly sender name if we have an agent id
-        sender_name = None
-        lookup_id = provided_source or from_agent
-        if lookup_id:
-            try:
-                reg_url = get_registry_url()
-                print(f"Resolving sender name for '{lookup_id}' via: {reg_url}/sender/{lookup_id}")
-                resp = requests.get(
-                    f"{reg_url}/sender/{lookup_id}",
-                    verify=False  # For development with self-signed certs
-                )
-                print(f"Sender lookup status: {resp.status_code}")
-                if resp.status_code == 200:
-                    body = resp.json() or {}
-                    sender_name = body.get("sender_name")
-                    if not sender_name:
-                        print(f"Sender name not found in registry response body: {body}")
-                else:
-                    print(f"Sender lookup failed: {resp.text}")
-            except Exception as e:
-                print(f"Warning: could not resolve sender name for '{lookup_id}': {e}")
-        # Fallback: use from_agent as name when lookup fails
-        if not sender_name:
-            sender_name = provided_source or from_agent or None
+       
+        reg_url = get_registry_url()
+        sender_name = requests.get(
+                f"{reg_url}/sender/{from_agent}",
+                verify=False  # For development with self-signed certs
+            )
+        sender_name = sender_name.json().get("sender_name")
 
         print("\n--- New message received ---")
         print(f"From: {from_agent}")
@@ -265,35 +237,20 @@ def receive_message():
         print(f"Timestamp: {timestamp}")
         print(f"Sender Name: {sender_name}")
         print("----------------------------\n")
-
+        
         # Create a unique file for each agent to avoid conflicts when running multiple agents
-        message_file = os.path.abspath(f"latest_message_{agent_id}.json")
-
-        # Create a payload the client can render
-        # Include a standard `sender` field for UI compatibility, with sensible fallbacks
-        payload = {
-            "message": message,
-            "from_agent": from_agent,
-            "sender_id": (provided_source or from_agent) or None,
-            "sender_name": sender_name,
-            "sender": provided_source or sender_name or from_agent or "Unknown",
-            "source_agent": provided_source or from_agent or None,
-            "direction": data.get('direction'),
-            "target_agent": data.get('target_agent'),
-            "conversation_id": conversation_id,
-            "timestamp": timestamp
-        }
+        message_file = f"latest_message.json"
+        
+        # Create a JavaScript snippet that the client can use to display this
         with open(message_file, "w") as f:
-            json.dump(payload, f)
-        print(f"📝 Latest message file written at: {message_file}")
-
-        # Broadcast to any registered SSE clients
-        try:
-            for cid in list(client_queues.keys()):
-                add_message_to_queue(cid, payload)
-        except Exception as e:
-            print(f"SSE broadcast error: {e}")
-
+            json.dump({
+                "message": message,
+                "from_agent": from_agent,
+                "sender_name": sender_name,
+                "conversation_id": conversation_id,
+                "timestamp": timestamp
+            }, f)
+        
         return jsonify({"status": "received"})
     except Exception as e:
         print(f"Error processing received message: {e}")
@@ -304,48 +261,17 @@ def receive_message():
 def render_on_ui():
     try:
         # Use agent-specific message file
-        message_file = os.path.abspath(f"latest_message_{agent_id}.json")
-
+        message_file = f"latest_message.json"
+        
         if not os.path.exists(message_file):
             return jsonify({})
         else:
-            with open(message_file, "r") as f:
-                latest_message = json.load(f)
+            latest_message = json.load(open(message_file))
             # Remove the original file
             os.remove(message_file)
             return jsonify(latest_message)
     except Exception as e:
-        print("No latest message found")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/messages/latest', methods=['GET'])
-def messages_latest():
-    """Debug endpoint: return latest message without deleting the file"""
-    try:
-        message_file = os.path.abspath(f"latest_message_{agent_id}.json")
-        if not os.path.exists(message_file):
-            return jsonify({})
-        with open(message_file, "r") as f:
-            data = json.load(f)
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/messages/register', methods=['POST'])
-def register_client():
-    """Register an SSE client to receive streamed messages"""
-    try:
-        data = request.json or {}
-        cid = data.get('client_id') or request.args.get('client_id')
-        if not cid:
-            return jsonify({"error": "client_id required"}), 400
-        if cid not in client_queues:
-            client_queues[cid] = {
-                'queue': Queue(),
-                'event': Event()
-            }
-        return jsonify({"status": "registered", "client_id": cid})
-    except Exception as e:
+        print(f"No latest message found")
         return jsonify({"error": str(e)}), 500
 
 
@@ -449,15 +375,8 @@ def main():
 
     #api_url = "https://chat2.nanda-registry.com:{api_port}"
     
-    # Register the agent so others can look it up for replies
-    try:
-        if public_url:
-            ok = register_agent(agent_id, public_url)
-            print(f"Registry registration status for {agent_id}: {ok}")
-        else:
-            print("Registry registration skipped: --public-url not provided")
-    except Exception as e:
-        print(f"Registry registration error: {e}")
+    # Register the agent (with API URL)
+    #register_agent(agent_id, public_url)
     
     print("\n" + "="*50)
     print(f"Agent {agent_id} is running")

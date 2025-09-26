@@ -410,7 +410,7 @@ def main():
             sys.exit(1)
 
     # Start the Flask API server
-    app.run(host='0.0.0.0', port=api_port, threaded=True, ssl_context=ssl_context)
+    app.run(host='0.0.0.0', port=api_port, threaded=True, ssl_context=ssl_context, debug=True)
 
 if __name__ == "__main__":
     main()

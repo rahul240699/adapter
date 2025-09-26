@@ -276,6 +276,8 @@ def receive_message():
             "sender_name": sender_name,
             "sender": provided_source or sender_name or from_agent or "Unknown",
             "source_agent": provided_source or from_agent or None,
+            "direction": data.get('direction'),
+            "target_agent": data.get('target_agent'),
             "conversation_id": conversation_id,
             "timestamp": timestamp
         }

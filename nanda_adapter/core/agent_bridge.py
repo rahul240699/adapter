@@ -276,7 +276,7 @@ def send_to_terminal(text, terminal_url, conversation_id, metadata=None):
         return False
 
 
-def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name: str = None, sender_id: str = None, source_agent: str = None):
+def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name: str = None, sender_id: str = None, source_agent: str = None, direction: str = None, target_agent: str = None):
     # Read UI_CLIENT_URL dynamically to get the latest value
     ui_client_url = os.getenv("UI_CLIENT_URL", "")
     print(f"🔍 Dynamic UI_CLIENT_URL: '{ui_client_url}'")
@@ -295,6 +295,8 @@ def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name:
             "sender": sender_name or (from_agent or os.getenv("AGENT_ID") or "Unknown"),
             "sender_name": sender_name,  # allow UI to prefer provided display name
             "source_agent": source_agent or from_agent,
+            "direction": direction,  # 'incoming' | 'outgoing'
+            "target_agent": target_agent,
             "conversation_id": conversation_id,
             "timestamp": datetime.now().isoformat()
         }
@@ -517,7 +519,14 @@ def handle_external_message(msg_text, conversation_id, msg):
         if UI_MODE:
             print("Forwarding message to UI client")
             # Use the external from_agent as the source_agent for display on UI
-            send_to_ui_client(formatted_text, from_agent, conversation_id, source_agent=from_agent)
+            send_to_ui_client(
+                formatted_text,
+                from_agent,
+                conversation_id,
+                source_agent=from_agent,
+                direction="incoming",
+                target_agent=responder_id
+            )
         else:
             # Mirror to local terminal when not in UI mode
             try:
@@ -571,7 +580,14 @@ def handle_external_message(msg_text, conversation_id, msg):
         if UI_MODE:
             try:
                 # For replies, display the current agent as source_agent on UI
-                send_to_ui_client(f"TO {from_agent}: {reply_text}", responder_id, conversation_id, source_agent=responder_id)
+                send_to_ui_client(
+                    f"TO {from_agent}: {reply_text}",
+                    responder_id,
+                    conversation_id,
+                    source_agent=responder_id,
+                    direction="outgoing",
+                    target_agent=from_agent
+                )
             except Exception as e:
                 print(f"Error forwarding reply to UI: {e}")
 

@@ -220,6 +220,8 @@ def receive_message():
         data = request.json
         message = data.get('message', '')
         # Be tolerant to different field names coming from various bridges/clients
+        # Prefer a provided `source_agent` when present (explicit display/source override)
+        provided_source = data.get('source_agent')
         from_agent = (
             data.get('from_agent')
             or data.get('sender_id')
@@ -231,12 +233,13 @@ def receive_message():
 
         # Resolve a human-friendly sender name if we have an agent id
         sender_name = None
-        if from_agent:
+        lookup_id = provided_source or from_agent
+        if lookup_id:
             try:
                 reg_url = get_registry_url()
-                print(f"Resolving sender name for '{from_agent}' via: {reg_url}/sender/{from_agent}")
+                print(f"Resolving sender name for '{lookup_id}' via: {reg_url}/sender/{lookup_id}")
                 resp = requests.get(
-                    f"{reg_url}/sender/{from_agent}",
+                    f"{reg_url}/sender/{lookup_id}",
                     verify=False  # For development with self-signed certs
                 )
                 print(f"Sender lookup status: {resp.status_code}")
@@ -248,10 +251,10 @@ def receive_message():
                 else:
                     print(f"Sender lookup failed: {resp.text}")
             except Exception as e:
-                print(f"Warning: could not resolve sender name for '{from_agent}': {e}")
+                print(f"Warning: could not resolve sender name for '{lookup_id}': {e}")
         # Fallback: use from_agent as name when lookup fails
         if not sender_name:
-            sender_name = from_agent or None
+            sender_name = provided_source or from_agent or None
 
         print("\n--- New message received ---")
         print(f"From: {from_agent}")
@@ -269,9 +272,10 @@ def receive_message():
         payload = {
             "message": message,
             "from_agent": from_agent,
-            "sender_id": from_agent or None,
+            "sender_id": (provided_source or from_agent) or None,
             "sender_name": sender_name,
-            "sender": sender_name or from_agent or "Unknown",
+            "sender": provided_source or sender_name or from_agent or "Unknown",
+            "source_agent": provided_source or from_agent or None,
             "conversation_id": conversation_id,
             "timestamp": timestamp
         }

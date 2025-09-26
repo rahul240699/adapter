@@ -291,11 +291,11 @@ def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name:
         payload = {
             "message": message_text,
             # Ensure from_agent always reflects the author of the message
-            "from_agent": (source_agent or from_agent),
+            "from_agent": (source_agent),
             "sender_id": sender_id or (from_agent or os.getenv("AGENT_ID") or ""),
             "sender": sender_name or (from_agent or os.getenv("AGENT_ID") or "Unknown"),
             "sender_name": sender_name,  # allow UI to prefer provided display name
-            "source_agent": source_agent or from_agent,
+            "source_agent": source_agent,
             "direction": direction,  # 'incoming' | 'outgoing'
             "target_agent": target_agent,
             "conversation_id": conversation_id,

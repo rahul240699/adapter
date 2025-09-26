@@ -415,8 +415,15 @@ def main():
 
     #api_url = "https://chat2.nanda-registry.com:{api_port}"
     
-    # Register the agent (with API URL)
-    #register_agent(agent_id, public_url)
+    # Register the agent so others can look it up for replies
+    try:
+        if public_url:
+            ok = register_agent(agent_id, public_url)
+            print(f"Registry registration status for {agent_id}: {ok}")
+        else:
+            print("Registry registration skipped: --public-url not provided")
+    except Exception as e:
+        print(f"Registry registration error: {e}")
     
     print("\n" + "="*50)
     print(f"Agent {agent_id} is running")

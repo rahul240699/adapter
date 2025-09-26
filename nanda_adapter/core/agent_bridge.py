@@ -119,6 +119,7 @@ def lookup_agent(agent_id):
         )
         if response.status_code == 200:
             agent_url = response.json().get("agent_url")
+            print(response.json())
             print(f"Found agent {agent_id} at URL: {agent_url}")
             return agent_url
         print(f"Agent {agent_id} not found in registry")

@@ -393,24 +393,24 @@ def main():
     
     # Configure SSL context if needed
     ssl_context = None
-    # if args.ssl:
-    #     if args.cert and args.key:
-    #         # Use provided certificate paths
-    #         if os.path.exists(args.cert) and os.path.exists(args.key):
-    #             ssl_context = (args.cert, args.key)
-    #             print(f"Using SSL certificates from: {args.cert}, {args.key}")
-    #         else:
-    #             print("ERROR: Certificate files not found at specified paths")
-    #             print(f"Certificate path: {args.cert}")
-    #             print(f"Key path: {args.key}")
-    #             sys.exit(1)
-    #     else:
-    #         print("ERROR: SSL enabled but certificate paths not provided")
-    #         print("Please provide --cert and --key arguments")
-    #         sys.exit(1)
+    if args.ssl:
+        if args.cert and args.key:
+            # Use provided certificate paths
+            if os.path.exists(args.cert) and os.path.exists(args.key):
+                ssl_context = (args.cert, args.key)
+                print(f"Using SSL certificates from: {args.cert}, {args.key}")
+            else:
+                print("ERROR: Certificate files not found at specified paths")
+                print(f"Certificate path: {args.cert}")
+                print(f"Key path: {args.key}")
+                sys.exit(1)
+        else:
+            print("ERROR: SSL enabled but certificate paths not provided")
+            print("Please provide --cert and --key arguments")
+            sys.exit(1)
 
     # Start the Flask API server
-    app.run(host='0.0.0.0', port=api_port, threaded=True, ssl_context=None)
+    app.run(host='0.0.0.0', port=api_port, threaded=True, ssl_context=ssl_context)
 
 if __name__ == "__main__":
     main()

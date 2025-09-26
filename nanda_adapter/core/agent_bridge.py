@@ -287,14 +287,18 @@ def send_to_ui_client(message_text, from_agent, conversation_id):
 
     try:
         print(f"Sending message to UI client: {message_text[:50]}...")
+        # Include redundant sender fields for UI compatibility
+        payload = {
+            "message": message_text,
+            "from_agent": from_agent,
+            "sender_id": (from_agent or os.getenv("AGENT_ID") or ""),
+            "sender": (from_agent or os.getenv("AGENT_ID") or "Unknown"),
+            "conversation_id": conversation_id,
+            "timestamp": datetime.now().isoformat()
+        }
         response = requests.post(
             ui_client_url,
-            json={
-                "message": message_text,
-                "from_agent": from_agent,
-                "conversation_id": conversation_id,
-                "timestamp": datetime.now().isoformat()
-            },
+            json=payload,
             timeout=10,
             verify=False # add this line to disable SSL verification
         )

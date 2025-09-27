@@ -121,7 +121,6 @@ def health_check():
     """Simple health check endpoint"""
     return jsonify({"status": "ok", "agent_id": agent_id})
 
-@app.route('/api/send', methods=['POST', 'OPTIONS'])
 def _extract_text_from_message(message: Union[str, Dict[str, Any], List[Any]]) -> str:
     """Normalize UI payloads into plain text for the bridge."""
 
@@ -166,6 +165,7 @@ def _extract_text_from_message(message: Union[str, Dict[str, Any], List[Any]]) -
     return str(message)
 
 
+@app.route('/api/send', methods=['POST', 'OPTIONS'])
 def send_message():
     """Send a message to the agent bridge and return the response"""
 

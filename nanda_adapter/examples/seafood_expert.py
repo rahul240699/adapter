@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 import os
-from ..core.nanda import NANDA
+import sys
+from pathlib import Path
+# Ensure local checkout of nanda_adapter is used before any installed package
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from nanda_adapter.core.nanda import NANDA
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_anthropic import ChatAnthropic

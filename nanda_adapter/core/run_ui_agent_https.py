@@ -8,7 +8,6 @@ import signal
 import argparse
 import threading
 import json
-from typing import Any, Dict, List, Union
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from python_a2a import A2AClient, Message, TextContent, MessageRole, Metadata
@@ -121,50 +120,6 @@ def health_check():
     """Simple health check endpoint"""
     return jsonify({"status": "ok", "agent_id": agent_id})
 
-def _extract_text_from_message(message: Union[str, Dict[str, Any], List[Any]]) -> str:
-    """Normalize UI payloads into plain text for the bridge."""
-
-    def _from_dict(payload: Dict[str, Any]) -> str:
-        # Anthropic Responses style payload
-        artifacts = payload.get("artifacts")
-        if isinstance(artifacts, list):
-            text_chunks = []
-            for artifact in artifacts:
-                if not isinstance(artifact, dict):
-                    continue
-                parts = artifact.get("parts")
-                if not isinstance(parts, list):
-                    continue
-                for part in parts:
-                    if isinstance(part, dict) and "text" in part:
-                        text_chunks.append(part["text"])
-            if text_chunks:
-                return "\n".join(text_chunks)
-
-        # Legacy simple payloads
-        if "text" in payload and isinstance(payload["text"], str):
-            return payload["text"]
-
-        # Fallback to JSON string for debugging
-        try:
-            return json.dumps(payload)
-        except Exception:
-            return str(payload)
-
-    if isinstance(message, str):
-        return message
-    if isinstance(message, dict):
-        return _from_dict(message)
-    if isinstance(message, list):
-        # Some frontends send a list of message parts
-        text_parts = [
-            _extract_text_from_message(part)
-            for part in message
-        ]
-        return "\n".join(filter(None, text_parts))
-    return str(message)
-
-
 @app.route('/api/send', methods=['POST', 'OPTIONS'])
 def send_message():
     """Send a message to the agent bridge and return the response"""
@@ -190,20 +145,15 @@ def send_message():
         if not data or 'message' not in data:
             return jsonify({"error": "Missing message in request"}), 400
         
-        raw_message = data['message']
-        message_text = _extract_text_from_message(raw_message)
+        message_text = data['message']
         conversation_id = data.get('conversation_id')
         client_id = data.get('client_id', 'ui_client')
-
+        
         # Create metadata for the message
         metadata = {
             'source': 'ui_client',
             'client_id': client_id
         }
-
-        # Preserve raw payload for debugging/agents that need richer context
-        if isinstance(raw_message, (dict, list)):
-            metadata['raw_message_payload'] = raw_message
 
         # Create an A2A client to talk to the agent bridge
         # Use HTTP for local communication
@@ -460,7 +410,7 @@ def main():
             sys.exit(1)
 
     # Start the Flask API server
-    app.run(host='0.0.0.0', port=api_port, threaded=True, ssl_context=ssl_context, debug=True)
+    app.run(host='0.0.0.0', port=api_port, threaded=True, ssl_context=ssl_context)
 
 if __name__ == "__main__":
     main()

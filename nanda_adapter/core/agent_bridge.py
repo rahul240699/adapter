@@ -48,22 +48,6 @@ registered_ui_clients = set()
 LOG_DIR = os.getenv("LOG_DIR", "conversation_logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# Trace logging toggle for verbose flow diagnostics
-TRACE_LOGGING = os.getenv("TRACE_LOGGING", "true").lower() in ("true", "1", "yes", "y")
-
-def trace(where: str, **data):
-    if not TRACE_LOGGING:
-        return
-    try:
-        # Keep it compact; avoid huge payloads
-        preview = {}
-        for k, v in (data or {}).items():
-            s = str(v)
-            preview[k] = s if len(s) <= 400 else s[:400] + "…"
-        print(f"[TRACE][{get_agent_id()}][{where}] {json.dumps(preview)}", flush=True)
-    except Exception as _e:
-        print(f"[TRACE][{get_agent_id()}][{where}] (unserializable data)", flush=True)
-
 # Configure system prompts based on agent ID (examples from the original code)
 SYSTEM_PROMPTS = {
     "default": "You are Claude assisting a user (Agent). Assume the messages you get are part of a conversation with other agents. Help the user communicate effectively with other agents."
@@ -75,16 +59,10 @@ IMPROVE_MESSAGE_PROMPTS = {
 }
 
 SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY") or "bfcb8cec-9d56-4957-8156-bced0bfca532"
-REGISTRY_VERIFY_SSL = os.getenv("REGISTRY_VERIFY_SSL", "true").lower() in ("true", "1", "yes", "y")
 
 def get_registry_url():
     """Get the registry URL from file or use default"""
     try:
-        # Prefer environment variable if provided
-        env_url = os.getenv("REGISTRY_URL")
-        if env_url:
-            print(f"Using registry URL from env: {env_url}")
-            return env_url
         if os.path.exists("registry_url.txt"):
             with open("registry_url.txt", "r") as f:
                 registry_url = f.read().strip()
@@ -112,9 +90,7 @@ def register_with_registry(agent_id, agent_url, api_url):
             "api_url": api_url
         }
         print(f"Registering agent {agent_id} with URL {agent_url} at registry {registry_url}...")
-        response = requests.post(
-            f"{registry_url}/register", json=data, verify=REGISTRY_VERIFY_SSL
-        )
+        response = requests.post(f"{registry_url}/register", json=data)
         if response.status_code == 200:
             print(f"Agent {agent_id} registered successfully")
             return True
@@ -130,12 +106,9 @@ def lookup_agent(agent_id):
     registry_url = get_registry_url()
     try:
         print(f"Looking up agent {agent_id} in registry {registry_url}...")
-        response = requests.get(
-            f"{registry_url}/lookup/{agent_id}", verify=REGISTRY_VERIFY_SSL
-        )
+        response = requests.get(f"{registry_url}/lookup/{agent_id}")
         if response.status_code == 200:
             agent_url = response.json().get("agent_url")
-            # print(response.json())
             print(f"Found agent {agent_id} at URL: {agent_url}")
             return agent_url
         print(f"Agent {agent_id} not found in registry")
@@ -149,9 +122,7 @@ def list_registered_agents():
     registry_url = get_registry_url()
     try:
         print(f"Requesting list of agents from registry {registry_url}...")
-        response = requests.get(
-            f"{registry_url}/list", verify=REGISTRY_VERIFY_SSL
-        )
+        response = requests.get(f"{registry_url}/list")
         if response.status_code == 200:
             agents = response.json()
             return agents
@@ -180,7 +151,6 @@ def log_message(conversation_id, path, source, message_text):
         log_file.write(json.dumps(log_entry) + "\n")
     
     print(f"Logged message from {source} in conversation {conversation_id}")
-    trace("log_message", conversation_id=conversation_id, source=source, path=path, msg_preview=message_text[:120])
 
 def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None) -> Optional[str]:
     """Wrapper that never raises: returns text or None on failure."""
@@ -193,14 +163,12 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
             system = SYSTEM_PROMPTS["default"]
         
         # Combine the prompt with additional context if provided
-        full_prompt = system + prompt
+        full_prompt = prompt
         if additional_context and additional_context.strip():
-            full_prompt = f"ADDITIONAL CONTEXT FROM USER: {additional_context}\n\nMESSAGE: {prompt}"
-
+            full_prompt = f"ADDITIONAL CONTEXT FRseOM USER: {additional_context}\n\nMESSAGE: {prompt}"
+        
         agent_id = get_agent_id()
         print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
-        trace("call_claude:request", prompt_preview=full_prompt[:200], system_preview=(system or "")[:120])
-
         resp = anthropic.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=512,
@@ -211,17 +179,14 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
         
         # Log the Claude response
         log_message(conversation_id, current_path, f"Claude {agent_id}", response_text)
-        trace("call_claude:response", length=len(response_text), response_preview=response_text[:200])
         
         return response_text
     except APIStatusError as e:
-        agent_id = get_agent_id()
         print(f"Agent {agent_id}: Anthropic API error:", e.status_code, e.message, flush=True)
         # If we hit a credit limit error, return a fallback message
         if "credit balance is too low" in str(e):
             return f"Agent {agent_id} processed (API credit limit reached): {prompt}"
     except Exception as e:
-        agent_id = get_agent_id()
         print(f"Agent {agent_id}: Anthropic SDK error:", e, flush=True)
         traceback.print_exc()
     return None
@@ -229,10 +194,13 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
 def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional[str]:
     """Wrapper that never raises: returns text or None on failure."""
     try:
+        # Use the specified system prompt or default to the agent's system prompt
+        
+        # Combine the prompt with additional context if provided
         full_prompt = f"MESSAGE: {message_text}"
+        
         agent_id = get_agent_id()
         print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
-        trace("call_claude_direct:request", prompt_preview=full_prompt[:200])
         resp = anthropic.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=512,
@@ -240,15 +208,16 @@ def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional
             system=system_prompt
         )
         response_text = resp.content[0].text
-        trace("call_claude_direct:response", length=len(response_text), response_preview=response_text[:200])
+        
+        # Log the Claude response
+        
         return response_text
     except APIStatusError as e:
-        agent_id = get_agent_id()
         print(f"Agent {agent_id}: Anthropic API error:", e.status_code, e.message, flush=True)
+        # If we hit a credit limit error, return a fallback message
         if "credit balance is too low" in str(e):
             return f"Agent {agent_id} processed (API credit limit reached): {message_text}"
     except Exception as e:
-        agent_id = get_agent_id()
         print(f"Agent {agent_id}: Anthropic SDK error:", e, flush=True)
         traceback.print_exc()
     return None
@@ -280,7 +249,6 @@ def send_to_terminal(text, terminal_url, conversation_id, metadata=None):
     """Send a message to a terminal"""
     try:
         print(f"Sending message to {terminal_url}: {text[:50]}...")
-        trace("send_to_terminal:request", url=terminal_url, text_preview=text[:120], conversation_id=conversation_id)
         terminal = A2AClient(terminal_url, timeout=30)
         terminal.send_message_threaded(
             Message(
@@ -290,55 +258,13 @@ def send_to_terminal(text, terminal_url, conversation_id, metadata=None):
                 metadata=Metadata(custom_fields=metadata or {})
             )
         )
-        trace("send_to_terminal:sent", url=terminal_url)
         return True
     except Exception as e:
         print(f"Error sending to terminal {terminal_url}: {e}")
-        trace("send_to_terminal:error", error=str(e))
         return False
 
 
-def _flatten_message_for_ui(message):
-    """Convert various message payloads into plain text for UI consumption."""
-    # Handle python_a2a TextContent objects
-    if hasattr(message, 'text') and isinstance(getattr(message, 'text'), str):
-        return message.text
-
-    if isinstance(message, str):
-        return message
-
-    if isinstance(message, dict):
-        artifacts = message.get('artifacts')
-        if isinstance(artifacts, list):
-            rendered = []
-            for artifact in artifacts:
-                if not isinstance(artifact, dict):
-                    continue
-                parts = artifact.get('parts')
-                if not isinstance(parts, list):
-                    continue
-                for part in parts:
-                    if isinstance(part, dict) and isinstance(part.get('text'), str):
-                        rendered.append(part['text'])
-            if rendered:
-                return "\n".join(rendered)
-
-        if isinstance(message.get('text'), str):
-            return message['text']
-
-        try:
-            return json.dumps(message)
-        except Exception:
-            return str(message)
-
-    if isinstance(message, list):
-        parts = [_flatten_message_for_ui(part) for part in message]
-        return "\n".join([p for p in parts if p])
-
-    return str(message)
-
-
-def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name: str = None, sender_id: str = None, source_agent: str = None, direction: str = None, target_agent: str = None):
+def send_to_ui_client(message_text, from_agent, conversation_id):
     # Read UI_CLIENT_URL dynamically to get the latest value
     ui_client_url = os.getenv("UI_CLIENT_URL", "")
     print(f"🔍 Dynamic UI_CLIENT_URL: '{ui_client_url}'")
@@ -347,44 +273,27 @@ def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name:
         print(f"No UI client URL configured. Cannot send message to UI client")
         return False
 
-    message_text = _flatten_message_for_ui(message_text)
-
     try:
         print(f"Sending message to UI client: {message_text[:50]}...")
-        # Include standard fields for UI compatibility
-        # from_agent should ALWAYS be the actual author/sender of the message
-        message_author = source_agent or from_agent
-        payload = {
-            "message": message_text,
-            "from_agent": message_author,  # Always the actual sender/author
-            "sender_id": sender_id or message_author or (os.getenv("AGENT_ID") or ""),
-            "sender": sender_name or message_author or (os.getenv("AGENT_ID") or "Unknown"),
-            "sender_name": sender_name,
-            "source_agent": message_author,
-            "direction": direction,  # 'incoming' | 'outgoing'
-            "target_agent": target_agent,
-            "conversation_id": conversation_id,
-            "timestamp": datetime.now().isoformat()
-        }
-
-        print(f"🔄 send_to_ui_client: direction={direction}, message_author={message_author}, target={target_agent}")
-        trace("send_to_ui_client:request", url=ui_client_url, direction=direction, source_agent=message_author, target_agent=target_agent, conversation_id=conversation_id)
         response = requests.post(
             ui_client_url,
-            json=payload,
+            json={
+                "message": message_text,
+                "from_agent": from_agent,
+                "conversation_id": conversation_id,
+                "timestamp": datetime.now().isoformat()
+            },
             timeout=10,
-            verify=False  # disable SSL verification for local/dev
+            verify=False # add this line to disable SSL verification
         )
+        
         if response.status_code == 200:
-            trace("send_to_ui_client:ok", status=response.status_code)
             print(f"Successfully sent message to UI client")
             return True
         else:
-            trace("send_to_ui_client:fail", status=response.status_code, body=response.text)
             print(f"Failed to send message to UI client: {response.status_code} {response.text}")
             return False
     except Exception as e:
-        trace("send_to_ui_client:error", error=str(e))
         print(f"Error sending to UI client: {e}")
         return False
 
@@ -392,7 +301,6 @@ def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name:
 def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None):
     """Send a message to another agent via their bridge"""
     # Look up the agent in the registry
-    trace("send_to_agent:start", target_agent_id=target_agent_id, conversation_id=conversation_id)
     agent_url = lookup_agent(target_agent_id)
     if not agent_url:
         return f"Agent {target_agent_id} not found in registry"
@@ -407,11 +315,9 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
 
         # Use the URL directly (it already includes /a2a from registration)
         print(f"Sending message to {target_agent_id} at {target_bridge_url}")
-        trace("send_to_agent:url", target_bridge_url=target_bridge_url)
 
         agent_id = get_agent_id()
         formatted_message = f"__EXTERNAL_MESSAGE__\n__FROM_AGENT__{agent_id}\n__TO_AGENT__{target_agent_id}\n__MESSAGE_START__\n{message_text}\n__MESSAGE_END__"
-        trace("send_to_agent:formatted", preview=formatted_message[:200])
         
         # Create simplified metadata
         try:
@@ -443,11 +349,10 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
                 metadata=Metadata(custom_fields=send_metadata) if send_metadata else None
             )
         )
-        trace("send_to_agent:sent", target_agent_id=target_agent_id)
+        
         return f"Message sent to {target_agent_id}"
     except Exception as e:
         print(f"Error sending message to {target_agent_id}: {e}")
-        trace("send_to_agent:error", error=str(e))
         return f"Error sending message to {target_agent_id}: {e}"
 
 
@@ -465,13 +370,15 @@ def get_mcp_server_url(requested_registry: str, qualified_name: str) -> Optional
     try:
         registry_url = get_registry_url()
         endpoint_url = f"{registry_url}/get_mcp_registry"
+        
         print(f"Querying MCP registry endpoint: {endpoint_url} for {qualified_name}")
-        trace("get_mcp_server_url:request", endpoint=endpoint_url, qualified_name=qualified_name, registry=requested_registry)
+        
         # Make request to the registry endpoint
         response = requests.get(endpoint_url, params={
             'registry_provider': requested_registry,
             'qualified_name': qualified_name
-        }, verify=REGISTRY_VERIFY_SSL)
+        })
+        
         if response.status_code == 200:
             result = response.json()
             endpoint = result.get("endpoint")
@@ -479,15 +386,13 @@ def get_mcp_server_url(requested_registry: str, qualified_name: str) -> Optional
             config_json = json.loads(config) if isinstance(config, str) else config
             registry_name = result.get("registry_provider")
             print(f"Found MCP server URL for {qualified_name}: {endpoint} && {config_json}")
-            trace("get_mcp_server_url:found", endpoint=endpoint)
             return endpoint, config_json, registry_name
         else:
             print(f"No MCP server found for qualified_name: {qualified_name} (Status: {response.status_code})")
-            trace("get_mcp_server_url:not_found", status=response.status_code)
             return None
+            
     except Exception as e:
         print(f"Error querying MCP server URL: {e}")
-        trace("get_mcp_server_url:error", error=str(e))
         return None
 
 def form_mcp_server_url(url: str, config: dict, registry_name: str) -> Optional[str]:
@@ -509,15 +414,14 @@ def form_mcp_server_url(url: str, config: dict, registry_name: str) -> Optional[
             if not smithery_api_key:
                 print("❌ SMITHERY_API_KEY not found in environment.")
                 return None
-            config_b64 = base64.b64encode(json.dumps(config).encode())
+            config_b64 = base64.b64encode(json.dumps(config).encode())            
             mcp_server_url = f"{url}?api_key={smithery_api_key}&config={config_b64}"
         else:
             mcp_server_url = url
-        trace("form_mcp_server_url:built", url=mcp_server_url)
         return mcp_server_url
+
     except Exception as e:
         print(f"Issues with form_mcp_server_url: {e}")
-        trace("form_mcp_server_url:error", error=str(e))
         return None
 
 async def run_mcp_query(query: str, updated_url: str) -> str:
@@ -555,75 +459,57 @@ def handle_external_message(msg_text, conversation_id, msg):
     """Handle specially formatted external messages"""
     try:
         # Parse the special message format
-        trace("handle_external_message:start", conversation_id=conversation_id)
         lines = msg_text.split('\n')
-
+        
         # Check if this is our special format
-        if not lines or lines[0] != '__EXTERNAL_MESSAGE__':
+        if lines[0] != '__EXTERNAL_MESSAGE__':
             return None
-
+        
         # Extract metadata from the message
         from_agent = None
         to_agent = None
         message_content = ""
-
+        
         # Parse the header fields
         in_message = False
         for line in lines[1:]:
             if line.startswith('__FROM_AGENT__'):
-                from_agent = line[len('__FROM_AGENT__'):].strip()
+                from_agent = line[len('__FROM_AGENT__'):]
             elif line.startswith('__TO_AGENT__'):
-                to_agent = line[len('__TO_AGENT__'):].strip()
+                to_agent = line[len('__TO_AGENT__'):]
             elif line == '__MESSAGE_START__':
                 in_message = True
             elif line == '__MESSAGE_END__':
                 in_message = False
             elif in_message:
                 message_content += line + '\n'
-
+        
         # Trim trailing newline
         message_content = message_content.rstrip()
-        trace("handle_external_message:parsed", from_agent=from_agent, to_agent=to_agent, msg_preview=message_content[:200])
+        
         print(f"Received external message from {from_agent} to {to_agent}")
-
-        # Define current agent (responder) early for later references
-        responder_id = get_agent_id()
-
-        # Format the message for display in terminal/UI
+        
+        # Format the message for display in terminal
         formatted_text = f"FROM {from_agent}: {message_content}"
+        
         print("Message Text: ", message_content)
         print("UI MODE: ", UI_MODE)
 
-        # Extract metadata flags from original message for downstream handling
-        metadata_fields = {}
-        if msg.metadata:
-            try:
-                if hasattr(msg.metadata, 'custom_fields'):
-                    metadata_fields = msg.metadata.custom_fields or {}
-                elif isinstance(msg.metadata, dict):
-                    metadata_fields = msg.metadata or {}
-            except Exception as meta_err:
-                print(f"Warning: unable to read metadata in handle_external_message: {meta_err}")
-                metadata_fields = {}
-
-        suppress_auto_reply = bool(metadata_fields.get('suppress_auto_reply') or metadata_fields.get('prevent_auto_reply'))
-        trace("handle_external_message:metadata", suppress_auto_reply=suppress_auto_reply, metadata_keys=list(metadata_fields.keys()))
-
-        # Forward incoming message to UI if enabled (for visibility)
+        # If in UI mode, forward to all registered UI clients
         if UI_MODE:
-            print("Forwarding message to UI client")
-            # For incoming messages: from_agent is the sender, target_agent is the receiver
-            send_to_ui_client(
-                formatted_text,
-                from_agent,  # The external sender
-                conversation_id,
-                source_agent=from_agent,  # The external sender
-                direction="incoming",
-                target_agent=responder_id  # The receiving agent (us)
+            print(f"Forwarding message to UI client")
+            send_to_ui_client(formatted_text, from_agent, conversation_id)
+            
+            # Acknowledge receipt to sender
+            agent_id = get_agent_id()
+            return Message(
+                role=MessageRole.AGENT,
+                content=TextContent(text=f"Message received by Agent {agent_id}"),
+                parent_message_id=msg.message_id,
+                conversation_id=conversation_id
             )
-            trace("handle_external_message:forwarded_to_ui")
+        # Otherwise, forward to local terminal (original behavior
         else:
-            # Mirror to local terminal when not in UI mode
             try:
                 terminal_client = A2AClient(LOCAL_TERMINAL_URL, timeout=10)
                 terminal_client.send_message_threaded(
@@ -639,77 +525,26 @@ def handle_external_message(msg_text, conversation_id, msg):
                         })
                     )
                 )
-            except Exception as e:
-                print(f"Error forwarding to local terminal: {e}")
-
-        if suppress_auto_reply:
-            trace("handle_external_message:auto_reply_suppressed", sender=from_agent, responder=responder_id)
-            return Message(
-                role=MessageRole.AGENT,
-                content=TextContent(text=f"[AGENT {responder_id}] Delivered message from {from_agent}"),
-                parent_message_id=msg.message_id,
-                conversation_id=conversation_id
-            )
-
-        # Generate a reply using the agent's reasoning function (Claude or custom)
-        current_path = responder_id  # minimal path context for logging
-        system_prompt = (
-            "You are an autonomous agent replying to another agent. "
-            "Provide a concise, helpful response. If the request is unclear, "
-            "respond with your best helpful assumption. Avoid pleasantries."
-        )
-
-        try:
-            reply_text = call_claude(message_content, "", conversation_id, current_path, system_prompt)
-        except Exception as e:
-            print(f"Error generating reply via Claude: {e}")
-            reply_text = None
-
-        if not reply_text or not reply_text.strip():
-            reply_text = "Acknowledged."
-        trace("handle_external_message:reply_ready", reply_preview=reply_text[:200])
-
-        # Send the reply back to the sender agent
-        if from_agent:
-            print(f"Attempting to send reply to from_agent='{from_agent}'")
-            send_metadata = {
-                'path': current_path,
-                'source_agent': responder_id,
-                'is_from_peer': True,
-                'suppress_auto_reply': True
-            }
-            send_result = send_to_agent(from_agent, reply_text, conversation_id, send_metadata)
-            print(f"Reply send result to {from_agent}: {send_result}")
-            trace("handle_external_message:reply_sent", result=send_result)
-
-        # Also forward the reply to UI if enabled
-        if UI_MODE:
-            try:
-                # For outgoing messages: from_agent is us (the sender), target_agent is the original sender
-                send_to_ui_client(
-                    f"TO {from_agent}: {reply_text}",
-                    responder_id,  # We are the sender of the reply
-                    conversation_id,
-                    source_agent=responder_id,  # We are the sender of the reply
-                    direction="outgoing",
-                    target_agent=from_agent  # The original sender is now the target
+                
+                # Acknowledge receipt to sender
+                agent_id = get_agent_id()
+                return Message(
+                    role=MessageRole.AGENT,
+                    content=TextContent(text=f"Message received by Agent {agent_id}"),
+                    parent_message_id=msg.message_id,
+                    conversation_id=conversation_id
                 )
             except Exception as e:
-                print(f"Error forwarding reply to UI: {e}")
-            else:
-                trace("handle_external_message:reply_forwarded_to_ui")
-
-        # Return a response containing the reply content
-        trace("handle_external_message:returning")
-        return Message(
-            role=MessageRole.AGENT,
-            content=TextContent(text=f"[AGENT {responder_id} -> {from_agent}] {reply_text}"),
-            parent_message_id=msg.message_id,
-            conversation_id=conversation_id
-        )
+                print(f"Error forwarding to local terminal: {e}")
+                return Message(
+                    role=MessageRole.AGENT,
+                    content=ErrorContent(message=f"Failed to deliver message: {str(e)}"),
+                    parent_message_id=msg.message_id,
+                    conversation_id=conversation_id
+                )
+            
     except Exception as e:
         print(f"Error parsing external message: {e}")
-        trace("handle_external_message:error", error=str(e))
         return None  # Not our special format or parsing failed
 
 
@@ -873,23 +708,7 @@ class AgentBridge(A2AServer):
                         log_message(conversation_id, current_path, f"Claude {agent_id}", message_text)
 
                     print(f"#jinu - Target agent: {target_agent}")
-                    print(f"#jinu - Improved message text: {message_text}")
-                    
-                    # Forward the outgoing message to UI if enabled (for visibility)
-                    if UI_MODE:
-                        try:
-                            send_to_ui_client(
-                                f"TO {target_agent}: {message_text}",
-                                agent_id,  # We are the sender
-                                conversation_id,
-                                source_agent=agent_id,  # We are the source
-                                direction="outgoing",
-                                target_agent=target_agent  # The target we're sending to
-                            )
-                            print(f"Forwarded outgoing message to UI: TO {target_agent}")
-                        except Exception as e:
-                            print(f"Error forwarding outgoing message to UI: {e}")
-                    
+                    print(f"#jinu - Imoproved message text: {message_text}")
                     # Send to the target agent's bridge
                     result = send_to_agent(target_agent, message_text, conversation_id, {
                         'path': current_path,
@@ -1063,16 +882,6 @@ if __name__ == "__main__":
     # Register with the registry if PUBLIC_URL is set
     public_url = os.getenv("PUBLIC_URL")
     api_url = os.getenv("API_URL")
-    if not public_url:
-        public_url = f"http://localhost:{PORT}"
-        os.environ["PUBLIC_URL"] = public_url
-        print(f"PUBLIC_URL not set. Defaulting to local URL: {public_url}")
-
-    if not api_url:
-        api_url = f"http://localhost:{PORT}"
-        os.environ["API_URL"] = api_url
-        print(f"API_URL not set. Defaulting to local URL: {api_url}")
-
     if public_url:
         agent_id = get_agent_id()
         register_with_registry(agent_id, public_url, api_url)

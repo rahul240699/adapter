@@ -87,16 +87,6 @@ class NANDA:
         # os.environ["UI_MODE"] = "true"
         # os.environ["UI_CLIENT_URL"] = f"{api_url}/api/receive_message"
 
-        if not public_url:
-            public_url = f"http://localhost:{PORT}"
-            os.environ["PUBLIC_URL"] = public_url
-            print(f"PUBLIC_URL not set. Defaulting to local URL: {public_url}")
-
-        if not api_url:
-            api_url = f"http://localhost:{PORT}"
-            os.environ["API_URL"] = api_url
-            print(f"API_URL not set. Defaulting to local URL: {api_url}")
-
         if public_url:
             register_with_registry(agent_id, public_url, api_url)
         else:
@@ -273,7 +263,7 @@ class NANDA:
         def start_flask_server():
             """Start the Flask API server in a separate thread"""
             try:
-                print(f"� Starting Flask API server on port {api_port}...")
+                print(f"🚀 Starting Flask API server on port {api_port}...")
                 run_ui_agent_https.app.run(
                     host='0.0.0.0', 
                     port=api_port, 

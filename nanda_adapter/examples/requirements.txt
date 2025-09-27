@@ -9,4 +9,4 @@ crewai-tools
 
 
 # NANDA Adapter
-nanda-adapter
+# nanda-adapter

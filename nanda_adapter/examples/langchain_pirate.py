@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import os
-from nanda_adapter.core.nanda import NANDA
+import sys
+from pathlib import Path
+from ..core.nanda import NANDA
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_anthropic import ChatAnthropic

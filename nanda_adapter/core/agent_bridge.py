@@ -44,7 +44,7 @@ UI_MODE = os.getenv("UI_MODE", "true").lower() in ("true", "1", "yes", "y")
 UI_CLIENT_URL = os.getenv("UI_CLIENT_URL", "")
 registered_ui_clients = set()
 
-# Toggle for auto mode - when enabled, agent answers questions directly without asking user
+# Toggle for agent chat - when enabled, agent answers questions directly without asking user
 AGENT_CHAT = os.getenv("AGENT_CHAT", "true").lower() in ("true", "1", "yes", "y")
 
 # Set up logging directory
@@ -931,6 +931,6 @@ if __name__ == "__main__":
     print(f"Starting Agent {agent_id} bridge on port {PORT}")
     print(f"Agent terminal port: {TERMINAL_PORT}")
     print(f"Message improvement feature is {'ENABLED' if IMPROVE_MESSAGES else 'DISABLED'}")
-    print(f"Auto mode is {'ENABLED' if AGENT_CHAT else 'DISABLED'}")
+    print(f"agent chat is {'ENABLED' if AGENT_CHAT else 'DISABLED'}")
     print(f"Logging conversations to {os.path.abspath(LOG_DIR)}")
     run_server(AgentBridge(), host="0.0.0.0", port=PORT)

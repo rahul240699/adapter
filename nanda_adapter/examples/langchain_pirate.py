@@ -4,9 +4,9 @@ import sys
 from pathlib import Path
 
 # Ensure local checkout of nanda_adapter is used before any installed package
-# PROJECT_ROOT = Path(__file__).resolve().parents[2]
-# if str(PROJECT_ROOT) not in sys.path:
-#     sys.path.insert(0, str(PROJECT_ROOT))
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from nanda_adapter.core.nanda import NANDA
 from langchain_core.prompts import PromptTemplate

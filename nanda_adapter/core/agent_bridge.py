@@ -44,31 +44,17 @@ UI_MODE = os.getenv("UI_MODE", "true").lower() in ("true", "1", "yes", "y")
 UI_CLIENT_URL = os.getenv("UI_CLIENT_URL", "")
 registered_ui_clients = set()
 
-# Agent behaviour configuration
-AGENT_MODE = os.getenv("AGENT_MODE", "assist").strip().lower()
-AUTO_MODE = os.getenv("AUTO_MODE", "true").lower() in ("true", "1", "yes", "y")
-CUSTOM_AGENT_MODE_PROMPT = os.getenv("AGENT_MODE_SYSTEM_PROMPT")
-
-AGENT_MODE_SYSTEM_PROMPTS = {
-    "assist": "You are an autonomous agent replying to another agent. Provide a concise, helpful response. Avoid pleasantries; focus on the request.",
-    "collaborate": "You are collaborating with another agent on a shared goal. Respond with constructive next steps, ask clarifying questions when needed, and keep messages action-oriented.",
-    "teach": "You are mentoring another agent. Offer guidance, highlight pitfalls, and explain your reasoning succinctly while staying supportive.",
-}
-
-
-def get_agent_mode_prompt(default: str) -> str:
-    """Resolve the system prompt for the configured agent mode."""
-    if CUSTOM_AGENT_MODE_PROMPT and CUSTOM_AGENT_MODE_PROMPT.strip():
-        return CUSTOM_AGENT_MODE_PROMPT.strip()
-    return AGENT_MODE_SYSTEM_PROMPTS.get(AGENT_MODE, default)
+# Toggle for auto mode - when enabled, agent answers questions directly without asking user
+AGENT_CHAT = os.getenv("AGENT_CHAT", "true").lower() in ("true", "1", "yes", "y")
 
 # Set up logging directory
 LOG_DIR = os.getenv("LOG_DIR", "conversation_logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# Configure system prompts based on agent ID (examples from the original code)
+# Configure system prompts based on mode
 SYSTEM_PROMPTS = {
-    "default": "You are Claude assisting a user (Agent). Assume the messages you get are part of a conversation with other agents. Help the user communicate effectively with other agents."
+    "default": "You are Claude assisting a user (Agent). Assume the messages you get are part of a conversation with other agents. Help the user communicate effectively with other agents.",
+    "agent_chat": "You are an autonomous AI agent. When you receive questions or requests, answer them directly and comprehensively without asking the user for clarification or confirmation. Provide complete, helpful responses based on your knowledge and capabilities. Act independently and decisively."
 }
 
 # Configure message improvement prompts
@@ -173,17 +159,16 @@ def log_message(conversation_id, path, source, message_text):
 def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None) -> Optional[str]:
     """Wrapper that never raises: returns text or None on failure."""
     try:
-        # Use the specified system prompt or default to the agent's system prompt
+        # Use the specified system prompt or the mode-specific default
         if system_prompt:
             system = system_prompt
         else:
-            # Use the agent's specific prompt if available, otherwise use default
-            system = SYSTEM_PROMPTS["default"]
+            system = SYSTEM_PROMPTS["agent_chat"] if AGENT_CHAT else SYSTEM_PROMPTS["default"]
         
         # Combine the prompt with additional context if provided
         full_prompt = prompt
         if additional_context and additional_context.strip():
-            full_prompt = f"ADDITIONAL CONTEXT FRseOM USER: {additional_context}\n\nMESSAGE: {prompt}"
+            full_prompt = f"ADDITIONAL CONTEXT FROM USER: {additional_context}\n\nMESSAGE: {prompt}"
         
         agent_id = get_agent_id()
         print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
@@ -507,36 +492,58 @@ def handle_external_message(msg_text, conversation_id, msg):
 
         print(f"Received external message from {from_agent} to {to_agent}")
 
-        metadata_fields = {}
-        if msg.metadata:
-            try:
-                if hasattr(msg.metadata, 'custom_fields'):
-                    metadata_fields = msg.metadata.custom_fields or {}
-                elif isinstance(msg.metadata, dict):
-                    metadata_fields = msg.metadata
-            except Exception as meta_err:
-                print(f"Warning: could not read metadata on external message: {meta_err}")
-                metadata_fields = {}
-
-        original_path = metadata_fields.get('path', '')
-        responder_id = get_agent_id()
-        current_path = original_path + ('>' if original_path else '') + responder_id
-        suppress_auto_reply = bool(metadata_fields.get('suppress_auto_reply'))
-
-        # Format the message for display in terminal/UI
+        # Format the message for display in terminal
         formatted_text = f"FROM {from_agent}: {message_content}"
 
         print("Message Text: ", message_content)
         print("UI MODE: ", UI_MODE)
+        print("AGENT_CHAT: ", AGENT_CHAT)
 
-        try:
-            log_message(conversation_id, current_path, f"Agent {responder_id} <- {from_agent}", message_content)
-        except Exception as log_err:
-            print(f"Warning: failed to log inbound external message: {log_err}")
+        # If AGENT_CHAT is enabled, process the message directly with Claude and respond
+        if AGENT_CHAT:
+            print(f"AGENT_CHAT enabled: Processing message directly with Claude")
+            agent_id = get_agent_id()
 
-        if UI_MODE:
-            print("Forwarding message to UI client")
+            claude_response = call_claude(
+                message_content,
+                "",
+                conversation_id,
+                f"external>{from_agent}>{agent_id}",
+                SYSTEM_PROMPTS["agent_chat"]
+            )
+
+            if claude_response:
+                response_text = f"Agent {agent_id} response: {claude_response}"
+                log_message(conversation_id, f"external>{from_agent}>{agent_id}", f"Auto Agent {agent_id}", claude_response)
+
+                return Message(
+                    role=MessageRole.AGENT,
+                    content=TextContent(text=response_text),
+                    parent_message_id=msg.message_id,
+                    conversation_id=conversation_id
+                )
+            else:
+                return Message(
+                    role=MessageRole.AGENT,
+                    content=TextContent(text=f"Agent {agent_id} processed your message but couldn't generate a response"),
+                    parent_message_id=msg.message_id,
+                    conversation_id=conversation_id
+                )
+
+        # If in UI mode, forward to all registered UI clients
+        elif UI_MODE:
+            print(f"Forwarding message to UI client")
             send_to_ui_client(formatted_text, from_agent, conversation_id)
+
+            # Acknowledge receipt to sender
+            agent_id = get_agent_id()
+            return Message(
+                role=MessageRole.AGENT,
+                content=TextContent(text=f"Message received by Agent {agent_id}"),
+                parent_message_id=msg.message_id,
+                conversation_id=conversation_id
+            )
+        # Otherwise, forward to local terminal (original behavior
         else:
             try:
                 terminal_client = A2AClient(LOCAL_TERMINAL_URL, timeout=10)
@@ -553,59 +560,26 @@ def handle_external_message(msg_text, conversation_id, msg):
                         })
                     )
                 )
+
+                agent_id = get_agent_id()
+                return Message(
+                    role=MessageRole.AGENT,
+                    content=TextContent(text=f"Message received by Agent {agent_id}"),
+                    parent_message_id=msg.message_id,
+                    conversation_id=conversation_id
+                )
             except Exception as e:
                 print(f"Error forwarding to local terminal: {e}")
+                return Message(
+                    role=MessageRole.AGENT,
+                    content=ErrorContent(message=f"Failed to deliver message: {str(e)}"),
+                    parent_message_id=msg.message_id,
+                    conversation_id=conversation_id
+                )
 
-        if suppress_auto_reply or not AUTO_MODE:
-            reason = "metadata" if suppress_auto_reply else "AUTO_MODE disabled"
-            print(f"Auto-reply skipped ({reason})")
-            return Message(
-                role=MessageRole.AGENT,
-                content=TextContent(text=f"Message delivered to Agent {responder_id}"),
-                parent_message_id=msg.message_id,
-                conversation_id=conversation_id
-            )
-
-        system_prompt = get_agent_mode_prompt(
-            "You are an autonomous agent replying to another agent. "
-            "Provide a concise, helpful response. Avoid pleasantries; focus on the request."
-        )
-
-        try:
-            reply_text = call_claude(message_content, "", conversation_id, current_path, system_prompt)
-        except Exception as e:
-            print(f"Error generating reply via Claude: {e}")
-            reply_text = None
-
-        if not reply_text or not reply_text.strip():
-            reply_text = "Acknowledged."
-
-        try:
-            log_message(conversation_id, current_path, f"Agent {responder_id} -> {from_agent}", reply_text)
-        except Exception as log_err:
-            print(f"Warning: failed to log outbound external reply: {log_err}")
-
-        send_metadata = {
-            'path': current_path,
-            'source_agent': responder_id,
-            'is_from_peer': True,
-            'suppress_auto_reply': True
-        }
-        send_result = send_to_agent(from_agent, reply_text, conversation_id, send_metadata)
-        print(f"Reply send result to {from_agent}: {send_result}")
-
-        if UI_MODE:
-            try:
-                send_to_ui_client(f"TO {from_agent}: {reply_text}", responder_id, conversation_id)
-            except Exception as e:
-                print(f"Error forwarding reply to UI: {e}")
-
-        return Message(
-            role=MessageRole.AGENT,
-            content=TextContent(text=f"[AGENT {responder_id} -> {from_agent}] {reply_text}"),
-            parent_message_id=msg.message_id,
-            conversation_id=conversation_id
-        )
+    except Exception as e:
+        print(f"Error parsing external message: {e}")
+        return None  # Not our special format or parsing failed
     except Exception as e:
         print(f"Error parsing external message: {e}")
         return None  # Not our special format or parsing failed
@@ -956,8 +930,7 @@ if __name__ == "__main__":
     agent_id = get_agent_id()
     print(f"Starting Agent {agent_id} bridge on port {PORT}")
     print(f"Agent terminal port: {TERMINAL_PORT}")
-    print(f"AUTO_MODE: {'ENABLED' if AUTO_MODE else 'DISABLED'}")
-    print(f"AGENT_MODE: {AGENT_MODE}")
     print(f"Message improvement feature is {'ENABLED' if IMPROVE_MESSAGES else 'DISABLED'}")
+    print(f"Auto mode is {'ENABLED' if AGENT_CHAT else 'DISABLED'}")
     print(f"Logging conversations to {os.path.abspath(LOG_DIR)}")
     run_server(AgentBridge(), host="0.0.0.0", port=PORT)

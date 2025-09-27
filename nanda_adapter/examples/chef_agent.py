@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import os
-from nanda_adapter.core.nanda import NANDA
+import sys
+from pathlib import Path
+from ..core.nanda import NANDA
 from crewai import Agent, Task, Crew
 from langchain_anthropic import ChatAnthropic
 

@@ -552,6 +552,21 @@ def handle_external_message(msg_text, conversation_id, msg):
         print("Message Text: ", message_content)
         print("UI MODE: ", UI_MODE)
 
+        # Extract metadata flags from original message for downstream handling
+        metadata_fields = {}
+        if msg.metadata:
+            try:
+                if hasattr(msg.metadata, 'custom_fields'):
+                    metadata_fields = msg.metadata.custom_fields or {}
+                elif isinstance(msg.metadata, dict):
+                    metadata_fields = msg.metadata or {}
+            except Exception as meta_err:
+                print(f"Warning: unable to read metadata in handle_external_message: {meta_err}")
+                metadata_fields = {}
+
+        suppress_auto_reply = bool(metadata_fields.get('suppress_auto_reply') or metadata_fields.get('prevent_auto_reply'))
+        trace("handle_external_message:metadata", suppress_auto_reply=suppress_auto_reply, metadata_keys=list(metadata_fields.keys()))
+
         # Forward incoming message to UI if enabled (for visibility)
         if UI_MODE:
             print("Forwarding message to UI client")
@@ -585,6 +600,15 @@ def handle_external_message(msg_text, conversation_id, msg):
             except Exception as e:
                 print(f"Error forwarding to local terminal: {e}")
 
+        if suppress_auto_reply:
+            trace("handle_external_message:auto_reply_suppressed", sender=from_agent, responder=responder_id)
+            return Message(
+                role=MessageRole.AGENT,
+                content=TextContent(text=f"[AGENT {responder_id}] Delivered message from {from_agent}"),
+                parent_message_id=msg.message_id,
+                conversation_id=conversation_id
+            )
+
         # Generate a reply using the agent's reasoning function (Claude or custom)
         current_path = responder_id  # minimal path context for logging
         system_prompt = (
@@ -609,7 +633,8 @@ def handle_external_message(msg_text, conversation_id, msg):
             send_metadata = {
                 'path': current_path,
                 'source_agent': responder_id,
-                'is_from_peer': True
+                'is_from_peer': True,
+                'suppress_auto_reply': True
             }
             send_result = send_to_agent(from_agent, reply_text, conversation_id, send_metadata)
             print(f"Reply send result to {from_agent}: {send_result}")

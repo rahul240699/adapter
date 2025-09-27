@@ -1021,6 +1021,16 @@ if __name__ == "__main__":
     # Register with the registry if PUBLIC_URL is set
     public_url = os.getenv("PUBLIC_URL")
     api_url = os.getenv("API_URL")
+    if not public_url:
+        public_url = f"http://localhost:{PORT}"
+        os.environ["PUBLIC_URL"] = public_url
+        print(f"PUBLIC_URL not set. Defaulting to local URL: {public_url}")
+
+    if not api_url:
+        api_url = f"http://localhost:{PORT}"
+        os.environ["API_URL"] = api_url
+        print(f"API_URL not set. Defaulting to local URL: {api_url}")
+
     if public_url:
         agent_id = get_agent_id()
         register_with_registry(agent_id, public_url, api_url)

@@ -298,6 +298,46 @@ def send_to_terminal(text, terminal_url, conversation_id, metadata=None):
         return False
 
 
+def _flatten_message_for_ui(message):
+    """Convert various message payloads into plain text for UI consumption."""
+    # Handle python_a2a TextContent objects
+    if hasattr(message, 'text') and isinstance(getattr(message, 'text'), str):
+        return message.text
+
+    if isinstance(message, str):
+        return message
+
+    if isinstance(message, dict):
+        artifacts = message.get('artifacts')
+        if isinstance(artifacts, list):
+            rendered = []
+            for artifact in artifacts:
+                if not isinstance(artifact, dict):
+                    continue
+                parts = artifact.get('parts')
+                if not isinstance(parts, list):
+                    continue
+                for part in parts:
+                    if isinstance(part, dict) and isinstance(part.get('text'), str):
+                        rendered.append(part['text'])
+            if rendered:
+                return "\n".join(rendered)
+
+        if isinstance(message.get('text'), str):
+            return message['text']
+
+        try:
+            return json.dumps(message)
+        except Exception:
+            return str(message)
+
+    if isinstance(message, list):
+        parts = [_flatten_message_for_ui(part) for part in message]
+        return "\n".join([p for p in parts if p])
+
+    return str(message)
+
+
 def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name: str = None, sender_id: str = None, source_agent: str = None, direction: str = None, target_agent: str = None):
     # Read UI_CLIENT_URL dynamically to get the latest value
     ui_client_url = os.getenv("UI_CLIENT_URL", "")
@@ -306,6 +346,8 @@ def send_to_ui_client(message_text, from_agent, conversation_id, *, sender_name:
     if not ui_client_url:
         print(f"No UI client URL configured. Cannot send message to UI client")
         return False
+
+    message_text = _flatten_message_for_ui(message_text)
 
     try:
         print(f"Sending message to UI client: {message_text[:50]}...")

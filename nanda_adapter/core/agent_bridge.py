@@ -514,7 +514,7 @@ def handle_external_message(msg_text, conversation_id, msg):
 
             if claude_response:
                 response_text = f"Agent {agent_id} response: {claude_response}"
-                log_message(conversation_id, f"external>{from_agent}>{agent_id}", f"Auto Agent {agent_id}", claude_response)
+                log_message(conversation_id, f"external>{from_agent}>{agent_id}", f"Chat with {agent_id}", claude_response)
 
                 return Message(
                     role=MessageRole.AGENT,

@@ -46,7 +46,7 @@ UI_CLIENT_URL = os.getenv("UI_CLIENT_URL", "")
 registered_ui_clients = set()
 
 # Toggle for agent chat - when enabled, agent answers questions directly without asking user
-AGENT_CHAT = os.getenv("AGENT_CHAT", "true").lower() in ("true", "1", "yes", "y")
+AGENT_CHAT = os.getenv("AGENT_CHAT", "false").lower() in ("true", "1", "yes", "y")
 
 # Set up logging directory
 LOG_DIR = os.getenv("LOG_DIR", "conversation_logs")

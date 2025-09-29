@@ -31,6 +31,7 @@ anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
 # Get agent configuration from environment variables
 def get_agent_id():
     """Get AGENT_ID dynamically from environment variables"""
+    print("[FLOW] Entering get_agent_id")
     return os.getenv("AGENT_ID", "default")
 
 PORT = int(os.getenv("PORT", "6000"))
@@ -66,6 +67,7 @@ SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY") or "bfcb8cec-9d56-4957-8156-bce
 
 def get_registry_url():
     """Get the registry URL from file or use default"""
+    print("[FLOW] Entering get_registry_url")
     try:
         if os.path.exists("registry_url.txt"):
             with open("registry_url.txt", "r") as f:
@@ -82,6 +84,7 @@ def get_registry_url():
 
 def register_with_registry(agent_id, agent_url, api_url):
     """Register this agent with the registry"""
+    print("[FLOW] Entering register_with_registry")
     registry_url = get_registry_url()
     try:
         # Add /a2a to the URL during registration
@@ -107,6 +110,7 @@ def register_with_registry(agent_id, agent_url, api_url):
 
 def lookup_agent(agent_id):
     """Look up an agent's URL in the registry"""
+    print("[FLOW] Entering lookup_agent")
     registry_url = get_registry_url()
     try:
         print(f"Looking up agent {agent_id} in registry {registry_url}...")
@@ -123,6 +127,7 @@ def lookup_agent(agent_id):
 
 def list_registered_agents():
     """Get a list of all registered agents from the registry"""
+    print("[FLOW] Entering list_registered_agents")
     registry_url = get_registry_url()
     try:
         print(f"Requesting list of agents from registry {registry_url}...")
@@ -138,6 +143,7 @@ def list_registered_agents():
 
 def log_message(conversation_id, path, source, message_text):
     """Log each message to a JSON file"""
+    print("[FLOW] Entering log_message")
     timestamp = datetime.now().isoformat()
     log_entry = {
         "timestamp": timestamp,
@@ -158,6 +164,7 @@ def log_message(conversation_id, path, source, message_text):
 
 def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None) -> Optional[str]:
     """Wrapper that never raises: returns text or None on failure."""
+    print("[FLOW] Entering call_claude")
     try:
         # Use the specified system prompt or the mode-specific default
         if system_prompt:
@@ -196,6 +203,7 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
 
 def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional[str]:
     """Wrapper that never raises: returns text or None on failure."""
+    print("[FLOW] Entering call_claude_direct")
     try:
         # Use the specified system prompt or default to the agent's system prompt
         
@@ -227,6 +235,7 @@ def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional
 
 def improve_message(message_text: str, conversation_id: str, current_path: str, additional_prompt: str=None) -> str:
     """Improve a message using Claude before forwarding it to the other party."""
+    print("[FLOW] Entering improve_message")
     if not IMPROVE_MESSAGES:
         return message_text
     
@@ -250,6 +259,7 @@ def improve_message(message_text: str, conversation_id: str, current_path: str, 
 
 def send_to_terminal(text, terminal_url, conversation_id, metadata=None):
     """Send a message to a terminal"""
+    print("[FLOW] Entering send_to_terminal")
     try:
         print(f"Sending message to {terminal_url}: {text[:50]}...")
         terminal = A2AClient(terminal_url, timeout=30)
@@ -269,6 +279,7 @@ def send_to_terminal(text, terminal_url, conversation_id, metadata=None):
 
 def send_to_ui_client(message_text, from_agent, conversation_id):
     # Read UI_CLIENT_URL dynamically to get the latest value
+    print("[FLOW] Entering send_to_ui_client")
     ui_client_url = os.getenv("UI_CLIENT_URL", "")
     print(f"🔍 Dynamic UI_CLIENT_URL: '{ui_client_url}'")
     
@@ -303,6 +314,7 @@ def send_to_ui_client(message_text, from_agent, conversation_id):
 
 def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None):
     """Send a message to another agent via their bridge"""
+    print("[FLOW] Entering send_to_agent")
     # Look up the agent in the registry
     agent_url = lookup_agent(target_agent_id)
     if not agent_url:
@@ -370,6 +382,7 @@ def get_mcp_server_url(requested_registry: str, qualified_name: str) -> Optional
     Returns:
         Optional[tuple]: Tuple of (endpoint, config_json, registry_name) if found, None otherwise
     """
+    print("[FLOW] Entering get_mcp_server_url")
     try:
         registry_url = get_registry_url()
         endpoint_url = f"{registry_url}/get_mcp_registry"
@@ -410,6 +423,7 @@ def form_mcp_server_url(url: str, config: dict, registry_name: str) -> Optional[
     Returns:
         Optional[str]: The mcp server URL if smithery api key is available, otherwise None
     """
+    print("[FLOW] Entering form_mcp_server_url")
     try:
         if registry_name == "smithery":
             print("🔑 Using SMITHERY_API_KEY: ", SMITHERY_API_KEY)
@@ -428,6 +442,7 @@ def form_mcp_server_url(url: str, config: dict, registry_name: str) -> Optional[
         return None
 
 async def run_mcp_query(query: str, updated_url: str) -> str:
+    print("[FLOW] Entering run_mcp_query")
     try:
         print(f"In run_mcp_query: MCP query: {query} on {updated_url}")
         
@@ -448,6 +463,7 @@ async def run_mcp_query(query: str, updated_url: str) -> str:
 if not hasattr(A2AClient, 'send_message_threaded'):
     def send_message_threaded(self, message: Message):
         """Send a message in a separate thread without waiting for a response"""
+        print("[FLOW] Entering send_message_threaded")
         thread = threading.Thread(target=self.send_message, args=(message,))
         thread.daemon = True
         thread.start()
@@ -460,6 +476,7 @@ if not hasattr(A2AClient, 'send_message_threaded'):
 # Update handle_message to detect this special format
 def handle_external_message(msg_text, conversation_id, msg):
     """Handle specially formatted external messages"""
+    print("[FLOW] Entering handle_external_message")
     try:
         # Parse the special message format
         lines = msg_text.split('\n')
@@ -590,7 +607,9 @@ message_improvement_decorators = {}
 
 def message_improver(name=None):
     """Decorator to register message improvement functions"""
+    print("[FLOW] Entering message_improver")
     def decorator(func):
+        print("[FLOW] Entering decorator inside message_improver")
         decorator_name = name or func.__name__
         message_improvement_decorators[decorator_name] = func
         return func
@@ -598,20 +617,24 @@ def message_improver(name=None):
 
 def register_message_improver(name, improver_func):
     """Register a custom message improver function"""
+    print("[FLOW] Entering register_message_improver")
     message_improvement_decorators[name] = improver_func
 
 def get_message_improver(name):
     """Get a registered message improver by name"""
+    print("[FLOW] Entering get_message_improver")
     return message_improvement_decorators.get(name)
 
 def list_message_improvers():
     """List all registered message improvers"""
+    print("[FLOW] Entering list_message_improvers")
     return list(message_improvement_decorators.keys())
 
 # Default improver
 @message_improver("default_claude")
 def default_claude_improver(message_text: str) -> str:
     """Default Claude-based message improvement"""
+    print("[FLOW] Entering default_claude_improver")
     if not IMPROVE_MESSAGES:
         return message_text
     
@@ -630,11 +653,13 @@ class AgentBridge(A2AServer):
     """Global Agent Bridge - Can be used for any agent in the network."""
 
     def __init__(self, *args, **kwargs):
+        print("[FLOW] Entering AgentBridge.__init__")
         super().__init__(*args, **kwargs)
         self.active_improver = "default_claude"  # Default improver
     
     def set_message_improver(self, improver_name):
         """Set the active message improver by name"""
+        print("[FLOW] Entering AgentBridge.set_message_improver")
         if improver_name in message_improvement_decorators:
             self.active_improver = improver_name
             print(f"Message improver set to: {improver_name}")
@@ -645,12 +670,14 @@ class AgentBridge(A2AServer):
     
     def set_custom_improver(self, improver_func, name="custom"):
         """Set a custom improver function"""
+        print("[FLOW] Entering AgentBridge.set_custom_improver")
         register_message_improver(name, improver_func)
         self.active_improver = name
         print(f"Custom message improver '{name}' registered and activated")
 
     def improve_message_direct(self, message_text: str) -> str:
         """Improve a message using the active registered improver."""
+        print("[FLOW] Entering AgentBridge.improve_message_direct")
         # Get the active improver function
         improver_func = message_improvement_decorators.get(self.active_improver)
         
@@ -665,6 +692,7 @@ class AgentBridge(A2AServer):
             return message_text
 
     def handle_message(self, msg: Message) -> Message:
+        print("[FLOW] Entering AgentBridge.handle_message")
         # Ensure we have a conversation ID
         conversation_id = msg.conversation_id or str(uuid.uuid4())
         agent_id = get_agent_id()

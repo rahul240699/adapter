@@ -96,7 +96,7 @@ class NANDA:
         # Start the server
         IMPROVE_MESSAGES = os.getenv("IMPROVE_MESSAGES", "true").lower() in ("true", "1", "yes", "y")
 
-        AGENT_CHAT = os.getenv("AGENT_CHAT", "true").lower() in ("true", "1", "yes", "y")
+        AGENT_CHAT = os.getenv("AGENT_CHAT", "false").lower() in ("true", "1", "yes", "y")
         
         print(f"\n🚀 Starting Agent {AGENT_ID} bridge on port {PORT}")
         print(f"Agent terminal port: {TERMINAL_PORT}")

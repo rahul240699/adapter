@@ -483,6 +483,7 @@ def handle_external_message(msg_text, conversation_id, msg):
 
         # Check if this is our special format
         if lines[0] != '__EXTERNAL_MESSAGE__':
+            print("[FLOW] handle_external_message: not external format")
             return None
 
         # Extract metadata from the message
@@ -494,14 +495,19 @@ def handle_external_message(msg_text, conversation_id, msg):
         in_message = False
         for line in lines[1:]:
             if line.startswith('__FROM_AGENT__'):
+                print("[FLOW] handle_external_message: parsing from_agent line")
                 from_agent = line[len('__FROM_AGENT__'):]
             elif line.startswith('__TO_AGENT__'):
+                print("[FLOW] handle_external_message: parsing to_agent line")
                 to_agent = line[len('__TO_AGENT__'):]
             elif line == '__MESSAGE_START__':
+                print("[FLOW] handle_external_message: entering message body")
                 in_message = True
             elif line == '__MESSAGE_END__':
+                print("[FLOW] handle_external_message: exiting message body")
                 in_message = False
             elif in_message:
+                print("[FLOW] handle_external_message: accumulating message body")
                 message_content += line + '\n'
 
         # Trim trailing newline
@@ -530,8 +536,22 @@ def handle_external_message(msg_text, conversation_id, msg):
             )
 
             if claude_response:
+                print("[FLOW] handle_external_message: claude response generated")
                 response_text = f"Agent {agent_id} response: {claude_response}"
                 log_message(conversation_id, f"external>{from_agent}>{agent_id}", f"Chat with {agent_id}", claude_response)
+
+                if from_agent:
+                    print(f"[FLOW] handle_external_message: sending response to {from_agent} via send_to_agent")
+                    send_metadata = {
+                        'path': f"external>{from_agent}>{agent_id}",
+                        'source_agent': agent_id,
+                        'is_external': True,
+                        'responding_to': from_agent
+                    }
+                    send_result = send_to_agent(from_agent, claude_response, conversation_id, send_metadata)
+                    print(f"[FLOW] handle_external_message: send_to_agent result -> {send_result}")
+                else:
+                    print("[FLOW] handle_external_message: from_agent missing; cannot forward response via send_to_agent")
 
                 return Message(
                     role=MessageRole.AGENT,
@@ -540,6 +560,7 @@ def handle_external_message(msg_text, conversation_id, msg):
                     conversation_id=conversation_id
                 )
             else:
+                print("[FLOW] handle_external_message: claude response missing")
                 return Message(
                     role=MessageRole.AGENT,
                     content=TextContent(text=f"Agent {agent_id} processed your message but couldn't generate a response"),
@@ -550,6 +571,7 @@ def handle_external_message(msg_text, conversation_id, msg):
         # If in UI mode, forward to all registered UI clients
         elif UI_MODE:
             print(f"Forwarding message to UI client")
+            print("[FLOW] handle_external_message: UI mode branch")
             send_to_ui_client(formatted_text, from_agent, conversation_id)
 
             # Acknowledge receipt to sender
@@ -562,6 +584,7 @@ def handle_external_message(msg_text, conversation_id, msg):
             )
         # Otherwise, forward to local terminal (original behavior
         else:
+            print("[FLOW] handle_external_message: local terminal branch")
             try:
                 terminal_client = A2AClient(LOCAL_TERMINAL_URL, timeout=10)
                 terminal_client.send_message_threaded(
@@ -586,6 +609,7 @@ def handle_external_message(msg_text, conversation_id, msg):
                     conversation_id=conversation_id
                 )
             except Exception as e:
+                print("[FLOW] handle_external_message: local terminal forwarding failed")
                 print(f"Error forwarding to local terminal: {e}")
                 return Message(
                     role=MessageRole.AGENT,
@@ -595,9 +619,11 @@ def handle_external_message(msg_text, conversation_id, msg):
                 )
 
     except Exception as e:
+        print("[FLOW] handle_external_message: top-level exception")
         print(f"Error parsing external message: {e}")
         return None  # Not our special format or parsing failed
     except Exception as e:
+        print("[FLOW] handle_external_message: duplicated exception handler")
         print(f"Error parsing external message: {e}")
         return None  # Not our special format or parsing failed
 
@@ -728,6 +754,7 @@ class AgentBridge(A2AServer):
         
         # Handle non-text content
         if not isinstance(msg.content, TextContent):
+            print("[FLOW] handle_message: non-text content branch")
             print(f"Agent {agent_id}: Received non-text content. Returning error.")
             return Message(
                 role = MessageRole.AGENT,
@@ -737,14 +764,17 @@ class AgentBridge(A2AServer):
             )
         
         if user_text.startswith('__EXTERNAL_MESSAGE__'):
+            print("[FLOW] handle_message: external message detected")
             print("--- External Message Detected ---")
             external_response = handle_external_message(user_text, conversation_id, msg)
             if external_response:
+                print("[FLOW] handle_message: returning external response")
                 return external_response
         
         # Regular processing for messages from the local terminal or peer
         # Handle regular processing for messages from the local terminal or peer
         if is_from_peer:
+            print("[FLOW] handle_message: message from peer branch")
             # Handle messages from peer agents - already processed by our terminal
             # Just return acknowledgment
             return Message(
@@ -754,19 +784,23 @@ class AgentBridge(A2AServer):
                 conversation_id=conversation_id
             )
         else:
+            print("[FLOW] handle_message: local terminal branch")
             # Message from local terminal user
             log_message(conversation_id, current_path, f"Local user to Agent {agent_id}", user_text)
             print(f"#jinu - User text: {user_text}")
             # Check if this is a message to another agent (starts with @)
             if user_text.startswith("@"):
+                print("[FLOW] handle_message: @mention branch")
                 # Parse the recipient
                 parts = user_text.split(" ", 1)
                 if len(parts) > 1:
+                    print("[FLOW] handle_message: @mention with payload")
                     target_agent = parts[0][1:]  # Remove the @ symbol
                     message_text = parts[1]
 
                     # Improve message if feature is enabled
                     if IMPROVE_MESSAGES:
+                        print("[FLOW] handle_message: improving @mention message")
                         # message_text = improve_message(message_text, conversation_id, current_path,
                         #     "Do not respond to the content of the message - it's intended for another agent. You are helping an agent communicate better with other agennts.")
                         message_text = self.improve_message_direct(message_text)
@@ -788,6 +822,7 @@ class AgentBridge(A2AServer):
                         conversation_id=conversation_id
                     )
                 else:
+                    print("[FLOW] handle_message: invalid @mention format")
                     # Invalid @ command format
                     return Message(
                         role=MessageRole.AGENT,
@@ -797,11 +832,13 @@ class AgentBridge(A2AServer):
                     )
             
             elif user_text.startswith("#"):
+                print("[FLOW] handle_message: #command branch")
                 # Parse the command
                 print((f"Detected natural language command: {user_text}"))
                 parts = user_text.split(" ", 1)
                 
                 if len(parts)>1 and len(parts[0][1:].split(":",1))==2:
+                    print("[FLOW] handle_message: #command with registry and query")
                     requested_registry,mcp_server_to_call = parts[0][1:].split(":",1)
                     query = parts[1]
                     print(f"Requested registry: {requested_registry}, MCP server to call: {mcp_server_to_call}, query: {query}")
@@ -809,6 +846,7 @@ class AgentBridge(A2AServer):
                     response = get_mcp_server_url(requested_registry,mcp_server_to_call)
                     print("Response from get_mcp_server_url: ", response)
                     if response is None:    
+                        print("[FLOW] handle_message: #command registry lookup failed")
                         return Message(
                             role=MessageRole.AGENT,
                             content=TextContent(text=f"[AGENT {agent_id}] MCP server '{mcp_server_to_call}' not found in registry. Please check the server name and try again."),
@@ -822,6 +860,7 @@ class AgentBridge(A2AServer):
                     mcp_server_final_url = form_mcp_server_url(mcp_server_url, config_details, registry_name)
                     print(f"MCP server final URL: {mcp_server_final_url}")
                     if mcp_server_final_url is None:
+                        print("[FLOW] handle_message: #command missing api key/config")
                         return Message(
                             role=MessageRole.AGENT,
                             content=TextContent(text=f"[AGENT {agent_id}] Ensure the required API key for registery is in env file"),
@@ -840,6 +879,7 @@ class AgentBridge(A2AServer):
                     )
                     
                 else:
+                    print("[FLOW] handle_message: invalid #command format")
                     # Invalid # command format
                     return Message(
                         role=MessageRole.AGENT,
@@ -850,12 +890,14 @@ class AgentBridge(A2AServer):
             
             # Check if this is a command (starts with /)
             elif user_text.startswith("/"):
+                print("[FLOW] handle_message: /command branch")
                 # Parse the command
                 parts = user_text.split(" ", 1)
                 command = parts[0][1:] if len(parts) > 0 else ""
                 
                 # Handle special commands
                 if command == "quit":
+                    print("[FLOW] handle_message: /quit branch")
                     # Quit command - acknowledge but let terminal handle the actual quitting
                     return Message(
                         role = MessageRole.AGENT,
@@ -865,6 +907,7 @@ class AgentBridge(A2AServer):
                     )
                 
                 elif command == "help":
+                    print("[FLOW] handle_message: /help branch")
                     # Help command - show only valid commands
                     help_text = """Available commands:
                         /help - Show this help message
@@ -879,8 +922,10 @@ class AgentBridge(A2AServer):
                     )
                 
                 elif command == "query":
+                    print("[FLOW] handle_message: /query branch")
                     # Process query command - this is for local assistance
                     if len(parts) > 1:
+                        print("[FLOW] handle_message: /query with payload")
                         query_text = parts[1]
                         print(f"Processing query command: '{query_text}'")
 
@@ -909,6 +954,7 @@ class AgentBridge(A2AServer):
 
                         return response_message
                     else:
+                        print("[FLOW] handle_message: /query missing payload")
                         # No query text provided
                         return Message(
                             role = MessageRole.AGENT,
@@ -917,6 +963,7 @@ class AgentBridge(A2AServer):
                             conversation_id = conversation_id
                         )
                 else:
+                    print("[FLOW] handle_message: unknown /command")
                     # Invalid command
                     help_text = """Unknown command. Available commands:
                         /help - Show this help message
@@ -929,8 +976,9 @@ class AgentBridge(A2AServer):
                             parent_message_id = msg.message_id,
                             conversation_id = conversation_id
                         )
-                            
+
             else:
+                print("[FLOW] handle_message: default chat branch")
                 # Regular message - process locally 
                 claude_response = call_claude(user_text, additional_context, conversation_id, current_path) or user_text
                 formatted_response = f"[AGENT {agent_id}] {claude_response}"

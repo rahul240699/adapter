@@ -318,6 +318,7 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
     # Look up the agent in the registry
     agent_url = lookup_agent(target_agent_id)
     if not agent_url:
+        print(f"[FLOW] send_to_agent: agent {target_agent_id} not found in registry")
         return f"Agent {target_agent_id} not found in registry"
     
     try:
@@ -333,6 +334,8 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
 
         agent_id = get_agent_id()
         formatted_message = f"__EXTERNAL_MESSAGE__\n__FROM_AGENT__{agent_id}\n__TO_AGENT__{target_agent_id}\n__MESSAGE_START__\n{message_text}\n__MESSAGE_END__"
+        print(formatted_message)
+        print("[FLOW] send_to_agent: formatted external message ready")
         
         # Create simplified metadata
         try:
@@ -347,10 +350,10 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
                     send_metadata[key] = value
                 
             print(f"Custom Fields being sent: {send_metadata}")
-        except:
+        except Exception as meta_error:
             # If metadata handling fails, continue anyway since we've included the info in the message
             send_metadata = None
-            print("Warning: Could not set metadata, but continuing with message format")
+            print(f"[FLOW] send_to_agent: metadata setup failed ({meta_error}); continuing without metadata")
 
         # Send message to the target agent's bridge
         # target_bridge_url = target_bridge_url.rstrip("/a2a")
@@ -364,9 +367,11 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
                 metadata=Metadata(custom_fields=send_metadata) if send_metadata else None
             )
         )
+        print(f"[FLOW] send_to_agent: send_message response -> {response}")
         
         return f"Message sent to {target_agent_id}"
     except Exception as e:
+        print(f"[FLOW] send_to_agent: exception while sending -> {e}")
         print(f"Error sending message to {target_agent_id}: {e}")
         return f"Error sending message to {target_agent_id}: {e}"
 

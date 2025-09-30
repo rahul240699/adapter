@@ -11,3 +11,12 @@ dist/
 *.egg-info/
 
 nanda_adapter/core/__pycache__
+
+# Test and debug files
+test_dynamic_agent_ids.py
+simple_debug_test.py
+test_claude_api.py
+test_a2a_claude.py
+debug_agent_config.py
+test_modular.py
+test_enhanced_a2a.py

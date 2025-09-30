@@ -1,36 +1,27 @@
+# Environment and secrets
 .env
-jinoos/
+
+# macOS and system files
 .DS_Store
-agents/__pycache__/
-conversation_logs/
-agents/test.py
-nanda_agent/__pycache__
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
 
 # Build artifacts
 dist/
 *.egg-info/
 
-nanda_adapter/core/__pycache__
-
-# Planning and local development documents (NEVER push to origin/upstream)
-CLAUDE.md
-TESTING.md
-*.local.md
+# Runtime files
 .nanda_registry.json
 logs/
-**/logs_*/
+conversation_logs/
 
-nanda_adapter/__pycache__
-
-# Test and debug files
-test_dynamic_agent_ids.py
-simple_debug_test.py
-test_claude_api.py
-test_a2a_claude.py
-debug_agent_config.py
-test_modular.py
-test_enhanced_a2a.py
-test_a2a_agents.py
-test_a2a_curl.py
-test_enhanced_merge.py
-examples/enhanced_a2a_demo.py
+# Development files
+*.local.md
+test_*.py
+debug_*.py
+demo_*.py
+*_test.py
+curl_test_*.sh

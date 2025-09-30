@@ -143,7 +143,7 @@ class MessageRouter:
             - This prevents infinite agent-to-agent loops
         """
         # Check depth limit
-        if depth >= 1:  # MVP: Only allow request-response (max_depth=1)
+        if depth >= 2:  # Allow request-response (depth 0->1), block deeper (max_depth=2)
             return f"[{self.agent_id}] Maximum depth reached (depth={depth})"
 
         # Parse @agent_id from message
@@ -198,7 +198,14 @@ class MessageRouter:
                 )
             )
 
-            return f"[{self.agent_id}] Message sent to {target_agent}"
+            # Return the actual response from the target agent
+            if response and hasattr(response, 'content') and response.content:
+                if hasattr(response.content, 'text'):
+                    return f"[{target_agent} → {self.agent_id}] {response.content.text}"
+                else:
+                    return f"[{target_agent} → {self.agent_id}] {str(response.content)}"
+            else:
+                return f"[{self.agent_id}] Message sent to {target_agent} (no response)"
 
         except Exception as e:
             return f"[{self.agent_id}] Error sending to {target_agent}: {str(e)}"

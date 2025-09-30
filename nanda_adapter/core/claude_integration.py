@@ -4,10 +4,14 @@ Handles all Anthropic Claude API interactions and message improvement.
 """
 import os
 import traceback
+import logging
 from typing import Optional
 from datetime import datetime
 from anthropic import Anthropic, APIStatusError
 from .logging_utils import log_message
+
+# Disable httpx INFO logging to reduce debug output
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 # Set API key through environment variable or directly in the code
@@ -38,14 +42,14 @@ def get_agent_id() -> str:
 def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None, agent_id: str = None) -> Optional[str]:
     """Wrapper that never raises: returns text or None on failure."""
     try:
-        print(f"[CLAUDE_INTEGRATION] call_claude() called")
-        print(f"[CLAUDE_INTEGRATION] Input prompt length: {len(prompt)}")
-        print(f"[CLAUDE_INTEGRATION] Input prompt preview: '{prompt[:100]}...'")
-        print(f"[CLAUDE_INTEGRATION] Additional context: '{additional_context}'")
+        # print(f"[CLAUDE_INTEGRATION] call_claude() called")
+        # print(f"[CLAUDE_INTEGRATION] Input prompt length: {len(prompt)}")
+        # print(f"[CLAUDE_INTEGRATION] Input prompt preview: '{prompt[:100]}...'")
+        # print(f"[CLAUDE_INTEGRATION] Additional context: '{additional_context}'")
         
         # Check for empty prompt
         if not prompt or not prompt.strip():
-            print(f"[CLAUDE_INTEGRATION] ERROR: Empty prompt detected! prompt='{prompt}'")
+            # print(f"[CLAUDE_INTEGRATION] ERROR: Empty prompt detected! prompt='{prompt}'")
             return "Error: Empty message content provided"
             
         # Use the specified system prompt or default to the agent's system prompt
@@ -60,20 +64,20 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
         if additional_context and additional_context.strip():
             full_prompt = f"ADDITIONAL CONTEXT FROM USER: {additional_context}\n\nMESSAGE: {prompt}"
         
-        print(f"[CLAUDE_INTEGRATION] Full prompt length: {len(full_prompt)}")
-        print(f"[CLAUDE_INTEGRATION] Full prompt preview: '{full_prompt[:200]}...'")
+        # print(f"[CLAUDE_INTEGRATION] Full prompt length: {len(full_prompt)}")
+        # print(f"[CLAUDE_INTEGRATION] Full prompt preview: '{full_prompt[:200]}...'")
         
         # Check for empty full prompt
         if not full_prompt or not full_prompt.strip():
-            print(f"[CLAUDE_INTEGRATION] ERROR: Empty full_prompt after processing! full_prompt='{full_prompt}'")
+            # print(f"[CLAUDE_INTEGRATION] ERROR: Empty full_prompt after processing! full_prompt='{full_prompt}'")
             return "Error: Empty message content after processing"
         
         # Use provided agent_id or get from environment
         if not agent_id:
             agent_id = get_agent_id()
             
-        print(f"[CLAUDE_INTEGRATION] Agent {agent_id}: Calling Claude API...")
-        print(f"[CLAUDE_INTEGRATION] System prompt: '{system[:100]}...'")
+        # print(f"[CLAUDE_INTEGRATION] Agent {agent_id}: Calling Claude API...")
+        # print(f"[CLAUDE_INTEGRATION] System prompt: '{system[:100]}...')")
         
         resp = anthropic.messages.create(
             model="claude-3-5-sonnet-20241022",
@@ -83,8 +87,8 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
         )
         response_text = resp.content[0].text
         
-        print(f"[CLAUDE_INTEGRATION] Claude response length: {len(response_text)}")
-        print(f"[CLAUDE_INTEGRATION] Claude response preview: '{response_text[:100]}...'")
+        # print(f"[CLAUDE_INTEGRATION] Claude response length: {len(response_text)}")
+        # print(f"[CLAUDE_INTEGRATION] Claude response preview: '{response_text[:100]}...'")
         
         # Log the Claude response
         log_message(conversation_id, current_path, f"Claude {agent_id}", response_text)

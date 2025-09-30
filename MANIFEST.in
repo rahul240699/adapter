@@ -1,8 +1,0 @@
-
-include README.md
-include LICENSE
-include requirements.txt
-recursive-include nanda_adapter *.py
-recursive-include nanda_adapter *.txt
-recursive-exclude * __pycache__
-recursive-exclude * *.py[co]

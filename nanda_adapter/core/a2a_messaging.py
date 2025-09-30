@@ -121,7 +121,8 @@ class A2AMessageHandler:
                 target_bridge_url = agent_url
                 print(f"URL already includes /a2a: {target_bridge_url}")
 
-            print(f"Sending message to {target_agent_id} at {target_bridge_url}")
+            print(f"🚀 Sending message from agent '{self.agent_id}' to '{target_agent_id}' at {target_bridge_url}")
+            print(f"📝 Message content: {message_text[:100]}...")
 
             # Create A2A message envelope
             envelope = A2AMessageEnvelope(
@@ -132,7 +133,9 @@ class A2AMessageHandler:
                 content=message_text
             )
             
+            print(f"📋 A2A Envelope: FROM={envelope.from_agent} TO={envelope.to_agent}")
             formatted_message = envelope.format()
+            print(f"📨 Formatted message preview: {formatted_message[:200]}...")
             
             # Create simplified metadata
             send_metadata = {

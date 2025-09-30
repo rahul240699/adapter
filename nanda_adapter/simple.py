@@ -35,6 +35,8 @@ from .core.registry import LocalRegistry
 from .core.router import MessageRouter
 from .core.protocol import parse_a2a_message, is_a2a_message
 from .core.logger import ConversationLogger
+from .core.a2a_messaging import A2AMessageHandler, A2AMessageEnvelope
+from .core.claude_integration import call_claude
 
 # Optional dependencies
 try:
@@ -172,6 +174,9 @@ class SimpleNANDA:
             claude_handler=self._call_claude if require_anthropic else None
         )
 
+        # Initialize enhanced A2A message handler
+        self.a2a_handler = A2AMessageHandler(agent_id=agent_id, registry=self.registry)
+
         # Register with registry
         agent_url = f"http://{self.hostname}:{self.port}"
         self.registry.register(agent_id, agent_url)
@@ -291,11 +296,49 @@ class SimpleNANDA:
                 conversation_id = msg.conversation_id or "default"
                 user_text = msg.content.text
 
+                print(f"[SIMPLE_NANDA] {self.parent.agent_id} received: '{user_text[:100]}...'")
+                
                 # Log incoming
                 self.parent.logger.log(conversation_id, "incoming", user_text)
 
-                # Check if A2A external message
-                if is_a2a_message(user_text):
+                # Check if this is an enhanced A2A message format (FROM: TO: CONTENT:)
+                if user_text.strip().startswith("FROM:") and "TO:" in user_text and "CONTENT:" in user_text:
+                    print(f"[SIMPLE_NANDA] Detected enhanced A2A message format")
+                    try:
+                        # Use enhanced A2A message handler
+                        envelope = A2AMessageEnvelope.parse(user_text)
+                        
+                        if envelope.to_agent == self.parent.agent_id:
+                            print(f"[SIMPLE_NANDA] Message is for us ({self.parent.agent_id})")
+                            
+                            # Generate intelligent response using Claude
+                            if self.parent.anthropic_api_key:
+                                print(f"[SIMPLE_NANDA] Generating Claude response...")
+                                claude_response = call_claude(
+                                    prompt=envelope.content,
+                                    additional_context=f"Message from {envelope.from_agent}",
+                                    conversation_id=conversation_id,
+                                    current_path="",
+                                    agent_id=self.parent.agent_id
+                                )
+                                
+                                if claude_response:
+                                    response_text = f"[{self.parent.agent_id}] {claude_response}"
+                                else:
+                                    response_text = f"[{self.parent.agent_id}] Received from {envelope.from_agent}: {envelope.content}"
+                            else:
+                                # Fallback without Claude
+                                response_text = f"[{self.parent.agent_id}] Received from {envelope.from_agent}: {envelope.content}"
+                        else:
+                            response_text = f"[{self.parent.agent_id}] Message not for me (intended for {envelope.to_agent})"
+                            
+                    except Exception as e:
+                        print(f"[SIMPLE_NANDA] Error processing enhanced A2A message: {e}")
+                        response_text = f"[{self.parent.agent_id}] Error processing A2A message: {str(e)}"
+                
+                # Check if standard A2A external message (backward compatibility)
+                elif is_a2a_message(user_text):
+                    print(f"[SIMPLE_NANDA] Detected standard A2A message format")
                     a2a_msg = parse_a2a_message(user_text)
                     if a2a_msg:
                         # Set conversation_id from context
@@ -340,9 +383,12 @@ class SimpleNANDA:
                     else:
                         response_text = "Invalid A2A message format"
                 else:
-                    # Regular message, route it
+                    # Regular message, route it through standard router
+                    print(f"[SIMPLE_NANDA] Regular message, routing through standard logic")
                     response_text = self.parent.router.route(user_text, conversation_id)
 
+                print(f"[SIMPLE_NANDA] {self.parent.agent_id} responding with: '{response_text[:100]}...'")
+                
                 # Log outgoing
                 self.parent.logger.log(conversation_id, "outgoing", response_text)
 

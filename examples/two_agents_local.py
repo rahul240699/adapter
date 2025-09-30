@@ -22,6 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from nanda_adapter.simple import SimpleNANDA
+from nanda_adapter.core.registry import LocalRegistry
 
 
 def main():
@@ -52,12 +53,17 @@ def main():
         print("=" * 60)
         sys.exit(1)
 
+    # Create shared registry in project root (not examples dir)
+    registry_path = PROJECT_ROOT / ".nanda_registry.json"
+    registry = LocalRegistry(str(registry_path))
+
     # Create and start agent
     print("=" * 60)
     print(f"Starting {agent_id} with Claude integration")
     print("=" * 60)
+    print(f"Shared registry: {registry_path}")
 
-    agent = SimpleNANDA(agent_id, host)
+    agent = SimpleNANDA(agent_id, host, registry=registry)
     agent.start()
 
 

@@ -376,5 +376,3 @@ agent.start()
 ## Contributing
 
 See [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) for branch naming and commit conventions.
-
-**Important**: Never include AI tool branding in commits.

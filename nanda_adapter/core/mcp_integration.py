@@ -10,7 +10,7 @@ import requests
 from typing import Optional, Tuple
 from urllib.parse import urlparse
 from .registry import get_registry_url
-from mcp_utils import MCPClient
+from .mcp_utils import MCPClient
 
 
 SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY") or "bfcb8cec-9d56-4957-8156-bced0bfca532"

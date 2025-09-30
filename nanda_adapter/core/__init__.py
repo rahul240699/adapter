@@ -6,8 +6,11 @@ This module contains the core components of the NANDA agent framework.
 """
 
 from .nanda import NANDA
-from .agent_bridge import (
-    AgentBridge, 
+from .modular_agent_bridge import (
+    ModularAgentBridge, 
+    start_modular_agent_bridge
+)
+from .claude_integration import (
     message_improver, 
     register_message_improver, 
     get_message_improver, 
@@ -16,7 +19,8 @@ from .agent_bridge import (
 
 __all__ = [
     "NANDA",
-    "AgentBridge",
+    "ModularAgentBridge",
+    "start_modular_agent_bridge",
     "message_improver",
     "register_message_improver", 
     "get_message_improver",

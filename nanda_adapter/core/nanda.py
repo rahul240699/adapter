@@ -16,14 +16,22 @@ import threading
 
 # Handle different import contexts
 try:
-    from .agent_bridge import *
+    from .modular_agent_bridge import ModularAgentBridge, start_modular_agent_bridge
+    from .claude_integration import register_message_improver
+    from .registry import register_with_registry
+    from .logging_utils import get_log_directory
     from . import run_ui_agent_https
+    from python_a2a import run_server
 except ImportError:
     # If running from parent directory, add current directory to path
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, current_dir)
-    from agent_bridge import *
+    from modular_agent_bridge import ModularAgentBridge, start_modular_agent_bridge
+    from claude_integration import register_message_improver
+    from registry import register_with_registry
+    from logging_utils import get_log_directory
     import run_ui_agent_https
+    from python_a2a import run_server
 
 class NANDA:
     """NANDA class to create agent_bridge with custom improvement logic"""
@@ -51,13 +59,13 @@ class NANDA:
         print(f"🔧 Custom improvement logic '{self.improvement_logic.__name__}' registered")
     
     def create_agent_bridge(self):
-        """Create AgentBridge with custom improvement logic"""
-        # Create standard AgentBridge
-        self.bridge = AgentBridge()
+        """Create ModularAgentBridge with custom improvement logic"""
+        # Create standard ModularAgentBridge
+        self.bridge = ModularAgentBridge()
         
         # Set custom improver as active (replaces improve_message_direct)
         self.bridge.set_message_improver("nanda_custom")
-        print(f"✅ AgentBridge created with custom improve_message_direct: {self.improvement_logic.__name__}")
+        print(f"✅ ModularAgentBridge created with custom improve_message_direct: {self.improvement_logic.__name__}")
     
     def start_server(self):
         """Start the agent_bridge server with custom improvement logic"""
@@ -101,7 +109,7 @@ class NANDA:
         print(f"\n🚀 Starting Agent {AGENT_ID} bridge on port {PORT}")
         print(f"Agent terminal port: {TERMINAL_PORT}")
         print(f"Message improvement feature is {'ENABLED' if IMPROVE_MESSAGES else 'DISABLED'}")
-        print(f"Logging conversations to {os.path.abspath(LOG_DIR)}")
+        print(f"Logging conversations to {os.path.abspath(get_log_directory())}")
         print(f"🔧 Using custom improvement logic: {self.improvement_logic.__name__}")
         
         # Run the agent bridge server

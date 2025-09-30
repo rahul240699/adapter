@@ -7,8 +7,11 @@ message improvement logic, built on top of the python_a2a communication framewor
 """
 
 from .core.nanda import NANDA
-from .core.agent_bridge import (
-    AgentBridge, 
+from .core.modular_agent_bridge import (
+    ModularAgentBridge, 
+    start_modular_agent_bridge
+)
+from .core.claude_integration import (
     message_improver, 
     register_message_improver, 
     get_message_improver, 
@@ -19,10 +22,15 @@ __version__ = "1.0.0"
 __author__ = "NANDA Team"
 __email__ = "support@nanda.ai"
 
+# Backward compatibility - keep AgentBridge as alias
+AgentBridge = ModularAgentBridge
+
 # Export main classes and functions
 __all__ = [
     "NANDA",
-    "AgentBridge",
+    "ModularAgentBridge",
+    "AgentBridge",  # Backward compatibility
+    "start_modular_agent_bridge",
     "message_improver",
     "register_message_improver", 
     "get_message_improver",

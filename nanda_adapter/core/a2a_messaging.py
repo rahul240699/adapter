@@ -54,10 +54,15 @@ class A2AMessageEnvelope:
     def parse(cls, message_text: str) -> Optional['A2AMessageEnvelope']:
         """Parse external message format into structured envelope"""
         try:
+            print(f"[A2A_ENVELOPE] parse() called with message_text length: {len(message_text)}")
+            print(f"[A2A_ENVELOPE] parse() message_text: '{message_text}'")
+            
             lines = message_text.split('\n')
+            print(f"[A2A_ENVELOPE] parse() split into {len(lines)} lines")
             
             # Check if this is our special format
             if not lines or lines[0] != '__EXTERNAL_MESSAGE__':
+                print(f"[A2A_ENVELOPE] parse() ERROR: Not our special format. First line: '{lines[0] if lines else 'NO LINES'}'")
                 return None
             
             from_agent = None
@@ -66,22 +71,31 @@ class A2AMessageEnvelope:
             
             # Parse the header fields
             in_message = False
-            for line in lines[1:]:
+            for i, line in enumerate(lines[1:], 1):
+                print(f"[A2A_ENVELOPE] parse() Line {i}: '{line}' (in_message: {in_message})")
                 if line.startswith('__FROM_AGENT__'):
                     from_agent = line[len('__FROM_AGENT__'):]
+                    print(f"[A2A_ENVELOPE] parse() Found from_agent: '{from_agent}'")
                 elif line.startswith('__TO_AGENT__'):
                     to_agent = line[len('__TO_AGENT__'):]
+                    print(f"[A2A_ENVELOPE] parse() Found to_agent: '{to_agent}'")
                 elif line == '__MESSAGE_START__':
                     in_message = True
+                    print(f"[A2A_ENVELOPE] parse() MESSAGE_START found, in_message=True")
                 elif line == '__MESSAGE_END__':
                     in_message = False
+                    print(f"[A2A_ENVELOPE] parse() MESSAGE_END found, in_message=False")
                 elif in_message:
                     message_content += line + '\n'
+                    print(f"[A2A_ENVELOPE] parse() Added to message_content: '{line}'")
             
             # Trim trailing newline
             message_content = message_content.rstrip()
+            print(f"[A2A_ENVELOPE] parse() Final message_content: '{message_content}'")
+            print(f"[A2A_ENVELOPE] parse() Final message_content length: {len(message_content)}")
             
             if from_agent and to_agent:
+                print(f"[A2A_ENVELOPE] parse() SUCCESS: Creating envelope with from={from_agent}, to={to_agent}, content='{message_content}'")
                 return cls(
                     from_agent=from_agent,
                     to_agent=to_agent,
@@ -89,6 +103,7 @@ class A2AMessageEnvelope:
                     message_end='__MESSAGE_END__',
                     content=message_content
                 )
+            print(f"[A2A_ENVELOPE] parse() ERROR: Missing agents. from_agent={from_agent}, to_agent={to_agent}")
             return None
             
         except Exception as e:
@@ -227,25 +242,31 @@ class A2AMessageHandler:
     def handle_external_message_with_reply(self, msg_text: str, conversation_id: str, msg: Message) -> Optional[Message]:
         """Handle external messages with automatic reply generation - ENHANCED VERSION"""
         try:
+            print(f"[A2A_MESSAGING] handle_external_message_with_reply() called")
+            print(f"[A2A_MESSAGING] Input msg_text length: {len(msg_text)}")
+            print(f"[A2A_MESSAGING] Input msg_text preview: '{msg_text[:200]}...'")
+            
             # 1. Message parsing and validation
             envelope = A2AMessageEnvelope.parse(msg_text)
             if not envelope:
-                print("Failed to parse external message envelope")
+                print("[A2A_MESSAGING] ERROR: Failed to parse external message envelope")
                 return None
             
             from_agent = envelope.from_agent
             to_agent = envelope.to_agent  
             message_content = envelope.content
             
-            print(f"Enhanced A2A: Received message from {from_agent} to {to_agent}")
-            print(f"Message content: {message_content[:100]}...")
+            print(f"[A2A_MESSAGING] Enhanced A2A: Received message from {from_agent} to {to_agent}")
+            print(f"[A2A_MESSAGING] Parsed envelope.content: '{message_content}'")
             
             # 2. Context building for reply generation  
             from .claude_integration import call_claude
             
             # Use the actual receiving agent ID from the message envelope, not environment
             receiving_agent_id = to_agent
-            print(f"🎯 Using receiving agent ID from message: {receiving_agent_id}")
+            print(f"[A2A_MESSAGING] Enhanced handler: Using receiving agent ID from message: {receiving_agent_id}")
+            print(f"[A2A_MESSAGING] Enhanced handler: Message content length: {len(message_content)}")
+            print(f"[A2A_MESSAGING] Enhanced handler: Message content: '{message_content}'")
             
             reply_context = f"""
 You have received a message from agent '{from_agent}' that says: "{message_content}"
@@ -259,7 +280,11 @@ As agent '{receiving_agent_id}', provide an intelligent, helpful response. Consi
 Respond directly to their message content - do not explain that you're generating a response.
 """
             
+            print(f"[A2A_MESSAGING] Enhanced handler: Reply context length: {len(reply_context)}")
+            print(f"[A2A_MESSAGING] Enhanced handler: Reply context preview: '{reply_context[:200]}...'")
+            
             # 3. Claude integration for intelligent replies
+            print(f"[A2A_MESSAGING] Enhanced handler: Calling Claude with receiving_agent_id: {receiving_agent_id}")
             intelligent_reply = call_claude(
                 reply_context, 
                 "", 
@@ -268,6 +293,8 @@ Respond directly to their message content - do not explain that you're generatin
                 f"You are {receiving_agent_id}, an AI assistant agent. Respond thoughtfully and helpfully to messages from other agents in the network.",
                 agent_id=receiving_agent_id  # Pass the correct agent ID
             )
+            
+            print(f"[A2A_MESSAGING] Enhanced handler: Claude returned: '{intelligent_reply}'")
             
             if not intelligent_reply:
                 # Fallback to contextual acknowledgment

@@ -146,8 +146,17 @@ class CommandHandler:
         
         elif command == "query":
             if len(parts) > 1:
-                query_text = parts[1]
-                print(f"Processing query command: '{query_text}'")
+                query_text = parts[1].strip()
+                print(f"[COMMAND_HANDLER] Processing query command: '{query_text}'")
+                
+                # Check for empty query
+                if not query_text:
+                    return Message(
+                        role=MessageRole.AGENT,
+                        content=TextContent(text=f"[AGENT {self.agent_id}] Error: Empty query provided"),
+                        parent_message_id=msg.message_id,
+                        conversation_id=conversation_id
+                    )
 
                 # Call Claude with the query
                 claude_response = call_claude(
@@ -197,8 +206,15 @@ class CommandHandler:
     def _handle_regular_message(self, user_text: str, conversation_id: str, current_path: str,
                                additional_context: str, msg: Message) -> Message:
         """Handle regular messages with Claude"""
-        claude_response = call_claude(user_text, additional_context, conversation_id, current_path) or user_text
-        formatted_response = f"[AGENT {self.agent_id}] {claude_response}"
+        print(f"[COMMAND_HANDLER] _handle_regular_message() called with user_text: '{user_text}'")
+        
+        # Check for empty user text
+        if not user_text or not user_text.strip():
+            print(f"[COMMAND_HANDLER] WARNING: Empty user_text detected")
+            formatted_response = f"[AGENT {self.agent_id}] Error: Empty message received"
+        else:
+            claude_response = call_claude(user_text, additional_context, conversation_id, current_path) or user_text
+            formatted_response = f"[AGENT {self.agent_id}] {claude_response}"
         
         return Message(
             role=MessageRole.AGENT,

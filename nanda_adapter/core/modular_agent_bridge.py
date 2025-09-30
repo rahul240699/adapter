@@ -80,7 +80,19 @@ class ModularAgentBridge(A2AServer):
             )
 
         user_text = msg.content.text
+        print(f"[MODULAR_BRIDGE] Received user_text length: {len(user_text)}")
+        print(f"[MODULAR_BRIDGE] Received user_text: '{user_text}'")
         print(f"Agent {self.agent_id}: Received text: {user_text[:50]}...")
+        
+        # Check for empty text
+        if not user_text or not user_text.strip():
+            print(f"[MODULAR_BRIDGE] WARNING: Empty user_text detected!")
+            return Message(
+                role=MessageRole.AGENT,
+                content=TextContent(text=f"[AGENT {self.agent_id}] Error: Empty message received"),
+                parent_message_id=msg.message_id,
+                conversation_id=conversation_id
+            )
         
         # Extract metadata
         metadata = self._extract_metadata(msg)

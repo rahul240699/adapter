@@ -25,3 +25,5 @@ debug_*.py
 demo_*.py
 *_test.py
 curl_test_*.sh
+
+venv/

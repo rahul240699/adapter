@@ -35,7 +35,7 @@ def get_agent_id() -> str:
     return os.getenv("AGENT_ID", "default")
 
 
-def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None) -> Optional[str]:
+def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None, agent_id: str = None) -> Optional[str]:
     """Wrapper that never raises: returns text or None on failure."""
     try:
         # Use the specified system prompt or default to the agent's system prompt
@@ -50,7 +50,10 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
         if additional_context and additional_context.strip():
             full_prompt = f"ADDITIONAL CONTEXT FROM USER: {additional_context}\n\nMESSAGE: {prompt}"
         
-        agent_id = get_agent_id()
+        # Use provided agent_id or get from environment
+        if not agent_id:
+            agent_id = get_agent_id()
+            
         print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
         resp = anthropic.messages.create(
             model="claude-3-5-sonnet-20241022",
@@ -65,13 +68,15 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
         
         return response_text
     except APIStatusError as e:
-        agent_id = get_agent_id()
+        if not agent_id:
+            agent_id = get_agent_id()
         print(f"Agent {agent_id}: Anthropic API error:", e.status_code, e.message, flush=True)
         # If we hit a credit limit error, return a fallback message
         if "credit balance is too low" in str(e):
             return f"Agent {agent_id} processed (API credit limit reached): {prompt}"
     except Exception as e:
-        agent_id = get_agent_id()
+        if not agent_id:
+            agent_id = get_agent_id()
         print(f"Agent {agent_id}: Anthropic SDK error:", e, flush=True)
         traceback.print_exc()
     return None

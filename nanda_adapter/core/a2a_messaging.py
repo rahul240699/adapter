@@ -121,12 +121,15 @@ class A2AMessageHandler:
                 target_bridge_url = agent_url
                 print(f"URL already includes /a2a: {target_bridge_url}")
 
-            print(f"🚀 Sending message from agent '{self.agent_id}' to '{target_agent_id}' at {target_bridge_url}")
+            # Use source_agent from metadata if provided, otherwise fall back to self.agent_id
+            sending_agent_id = metadata.get('source_agent', self.agent_id) if metadata else self.agent_id
+            
+            print(f"🚀 Sending message from agent '{sending_agent_id}' to '{target_agent_id}' at {target_bridge_url}")
             print(f"📝 Message content: {message_text[:100]}...")
 
-            # Create A2A message envelope
+            # Create A2A message envelope with correct sending agent ID
             envelope = A2AMessageEnvelope(
-                from_agent=self.agent_id,
+                from_agent=sending_agent_id,
                 to_agent=target_agent_id,
                 message_start='__MESSAGE_START__',
                 message_end='__MESSAGE_END__',
@@ -137,10 +140,10 @@ class A2AMessageHandler:
             formatted_message = envelope.format()
             print(f"📨 Formatted message preview: {formatted_message[:200]}...")
             
-            # Create simplified metadata
+            # Create simplified metadata with correct agent IDs
             send_metadata = {
                 'is_external': True,
-                'from_agent_id': self.agent_id,
+                'from_agent_id': sending_agent_id,
                 'to_agent_id': target_agent_id,
                 'message_type': MessageType.AGENT_TO_AGENT.value
             }
@@ -209,10 +212,10 @@ class A2AMessageHandler:
                         conversation_id=conversation_id
                     )
             
-            # Return simple acknowledgment for now
+            # Return simple acknowledgment using the actual receiving agent ID
             return Message(
                 role=MessageRole.AGENT,
-                content=TextContent(text=f"Message received by Agent {self.agent_id}"),
+                content=TextContent(text=f"Message received by Agent {envelope.to_agent}"),
                 parent_message_id=msg.message_id,
                 conversation_id=conversation_id
             )
@@ -238,16 +241,19 @@ class A2AMessageHandler:
             print(f"Message content: {message_content[:100]}...")
             
             # 2. Context building for reply generation  
-            from .claude_integration import call_claude, get_agent_id
+            from .claude_integration import call_claude
             
-            agent_id = get_agent_id()
+            # Use the actual receiving agent ID from the message envelope, not environment
+            receiving_agent_id = to_agent
+            print(f"🎯 Using receiving agent ID from message: {receiving_agent_id}")
+            
             reply_context = f"""
 You have received a message from agent '{from_agent}' that says: "{message_content}"
 
-As agent '{agent_id}', provide an intelligent, helpful response. Consider:
+As agent '{receiving_agent_id}', provide an intelligent, helpful response. Consider:
 - The content and intent of their message
 - How you can be most helpful to them  
-- Your role and capabilities as agent '{agent_id}'
+- Your role and capabilities as agent '{receiving_agent_id}'
 - Keep your response concise but meaningful
 
 Respond directly to their message content - do not explain that you're generating a response.
@@ -258,8 +264,9 @@ Respond directly to their message content - do not explain that you're generatin
                 reply_context, 
                 "", 
                 conversation_id, 
-                f"{from_agent}>{agent_id}",
-                f"You are {agent_id}, an AI assistant agent. Respond thoughtfully and helpfully to messages from other agents in the network."
+                f"{from_agent}>{receiving_agent_id}",
+                f"You are {receiving_agent_id}, an AI assistant agent. Respond thoughtfully and helpfully to messages from other agents in the network.",
+                agent_id=receiving_agent_id  # Pass the correct agent ID
             )
             
             if not intelligent_reply:
@@ -298,7 +305,7 @@ Respond directly to their message content - do not explain that you're generatin
             # 5. Return intelligent reply to current conversation
             return Message(
                 role=MessageRole.AGENT,
-                content=TextContent(text=f"[INTELLIGENT REPLY] {intelligent_reply}"),
+                content=TextContent(text=f"[AGENT {receiving_agent_id}] {intelligent_reply}"),
                 parent_message_id=msg.message_id,
                 conversation_id=conversation_id
             )

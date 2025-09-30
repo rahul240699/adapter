@@ -30,4 +30,7 @@ test_a2a_claude.py
 debug_agent_config.py
 test_modular.py
 test_enhanced_a2a.py
+test_a2a_agents.py
+test_a2a_curl.py
+test_enhanced_merge.py
 examples/enhanced_a2a_demo.py

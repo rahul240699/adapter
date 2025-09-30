@@ -31,7 +31,6 @@ anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
 # Get agent configuration from environment variables
 def get_agent_id():
     """Get AGENT_ID dynamically from environment variables"""
-    print("[FLOW] Entering get_agent_id")
     return os.getenv("AGENT_ID", "default")
 
 PORT = int(os.getenv("PORT", "6000"))
@@ -45,17 +44,13 @@ UI_MODE = os.getenv("UI_MODE", "true").lower() in ("true", "1", "yes", "y")
 UI_CLIENT_URL = os.getenv("UI_CLIENT_URL", "")
 registered_ui_clients = set()
 
-# Toggle for agent chat - when enabled, agent answers questions directly without asking user
-AGENT_CHAT = os.getenv("AGENT_CHAT", "false").lower() in ("true", "1", "yes", "y")
-
 # Set up logging directory
 LOG_DIR = os.getenv("LOG_DIR", "conversation_logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# Configure system prompts based on mode
+# Configure system prompts based on agent ID (examples from the original code)
 SYSTEM_PROMPTS = {
-    "default": "You are Claude assisting a user (Agent). Assume the messages you get are part of a conversation with other agents. Help the user communicate effectively with other agents.",
-    "agent_chat": "You are an autonomous AI agent. When you receive questions or requests, answer them directly and comprehensively without asking the user for clarification or confirmation. Provide complete, helpful responses based on your knowledge and capabilities. Act independently and decisively."
+    "default": "You are Claude assisting a user (Agent). Assume the messages you get are part of a conversation with other agents. Help the user communicate effectively with other agents."
 }
 
 # Configure message improvement prompts
@@ -67,7 +62,6 @@ SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY") or "bfcb8cec-9d56-4957-8156-bce
 
 def get_registry_url():
     """Get the registry URL from file or use default"""
-    print("[FLOW] Entering get_registry_url")
     try:
         if os.path.exists("registry_url.txt"):
             with open("registry_url.txt", "r") as f:
@@ -84,7 +78,6 @@ def get_registry_url():
 
 def register_with_registry(agent_id, agent_url, api_url):
     """Register this agent with the registry"""
-    print("[FLOW] Entering register_with_registry")
     registry_url = get_registry_url()
     try:
         # Add /a2a to the URL during registration
@@ -110,7 +103,6 @@ def register_with_registry(agent_id, agent_url, api_url):
 
 def lookup_agent(agent_id):
     """Look up an agent's URL in the registry"""
-    print("[FLOW] Entering lookup_agent")
     registry_url = get_registry_url()
     try:
         print(f"Looking up agent {agent_id} in registry {registry_url}...")
@@ -127,7 +119,6 @@ def lookup_agent(agent_id):
 
 def list_registered_agents():
     """Get a list of all registered agents from the registry"""
-    print("[FLOW] Entering list_registered_agents")
     registry_url = get_registry_url()
     try:
         print(f"Requesting list of agents from registry {registry_url}...")
@@ -143,7 +134,6 @@ def list_registered_agents():
 
 def log_message(conversation_id, path, source, message_text):
     """Log each message to a JSON file"""
-    print("[FLOW] Entering log_message")
     timestamp = datetime.now().isoformat()
     log_entry = {
         "timestamp": timestamp,
@@ -164,18 +154,18 @@ def log_message(conversation_id, path, source, message_text):
 
 def call_claude(prompt: str, additional_context: str, conversation_id: str, current_path: str, system_prompt: str = None) -> Optional[str]:
     """Wrapper that never raises: returns text or None on failure."""
-    print("[FLOW] Entering call_claude")
     try:
-        # Use the specified system prompt or the mode-specific default
+        # Use the specified system prompt or default to the agent's system prompt
         if system_prompt:
             system = system_prompt
         else:
-            system = SYSTEM_PROMPTS["agent_chat"] if AGENT_CHAT else SYSTEM_PROMPTS["default"]
+            # Use the agent's specific prompt if available, otherwise use default
+            system = SYSTEM_PROMPTS["default"]
         
         # Combine the prompt with additional context if provided
         full_prompt = prompt
         if additional_context and additional_context.strip():
-            full_prompt = f"ADDITIONAL CONTEXT FROM USER: {additional_context}\n\nMESSAGE: {prompt}"
+            full_prompt = f"ADDITIONAL CONTEXT FRseOM USER: {additional_context}\n\nMESSAGE: {prompt}"
         
         agent_id = get_agent_id()
         print(f"Agent {agent_id}: Calling Claude with prompt: {full_prompt[:50]}...")
@@ -203,7 +193,6 @@ def call_claude(prompt: str, additional_context: str, conversation_id: str, curr
 
 def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional[str]:
     """Wrapper that never raises: returns text or None on failure."""
-    print("[FLOW] Entering call_claude_direct")
     try:
         # Use the specified system prompt or default to the agent's system prompt
         
@@ -235,7 +224,6 @@ def call_claude_direct(message_text: str, system_prompt: str = None) -> Optional
 
 def improve_message(message_text: str, conversation_id: str, current_path: str, additional_prompt: str=None) -> str:
     """Improve a message using Claude before forwarding it to the other party."""
-    print("[FLOW] Entering improve_message")
     if not IMPROVE_MESSAGES:
         return message_text
     
@@ -259,7 +247,6 @@ def improve_message(message_text: str, conversation_id: str, current_path: str, 
 
 def send_to_terminal(text, terminal_url, conversation_id, metadata=None):
     """Send a message to a terminal"""
-    print("[FLOW] Entering send_to_terminal")
     try:
         print(f"Sending message to {terminal_url}: {text[:50]}...")
         terminal = A2AClient(terminal_url, timeout=30)
@@ -279,7 +266,6 @@ def send_to_terminal(text, terminal_url, conversation_id, metadata=None):
 
 def send_to_ui_client(message_text, from_agent, conversation_id):
     # Read UI_CLIENT_URL dynamically to get the latest value
-    print("[FLOW] Entering send_to_ui_client")
     ui_client_url = os.getenv("UI_CLIENT_URL", "")
     print(f"🔍 Dynamic UI_CLIENT_URL: '{ui_client_url}'")
     
@@ -314,11 +300,9 @@ def send_to_ui_client(message_text, from_agent, conversation_id):
 
 def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None):
     """Send a message to another agent via their bridge"""
-    print("[FLOW] Entering send_to_agent")
     # Look up the agent in the registry
     agent_url = lookup_agent(target_agent_id)
     if not agent_url:
-        print(f"[FLOW] send_to_agent: agent {target_agent_id} not found in registry")
         return f"Agent {target_agent_id} not found in registry"
     
     try:
@@ -334,8 +318,6 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
 
         agent_id = get_agent_id()
         formatted_message = f"__EXTERNAL_MESSAGE__\n__FROM_AGENT__{agent_id}\n__TO_AGENT__{target_agent_id}\n__MESSAGE_START__\n{message_text}\n__MESSAGE_END__"
-        print(formatted_message)
-        print("[FLOW] send_to_agent: formatted external message ready")
         
         # Create simplified metadata
         try:
@@ -350,10 +332,10 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
                     send_metadata[key] = value
                 
             print(f"Custom Fields being sent: {send_metadata}")
-        except Exception as meta_error:
+        except:
             # If metadata handling fails, continue anyway since we've included the info in the message
             send_metadata = None
-            print(f"[FLOW] send_to_agent: metadata setup failed ({meta_error}); continuing without metadata")
+            print("Warning: Could not set metadata, but continuing with message format")
 
         # Send message to the target agent's bridge
         # target_bridge_url = target_bridge_url.rstrip("/a2a")
@@ -367,11 +349,9 @@ def send_to_agent(target_agent_id, message_text, conversation_id, metadata=None)
                 metadata=Metadata(custom_fields=send_metadata) if send_metadata else None
             )
         )
-        print(f"[FLOW] send_to_agent: send_message response -> {response}")
         
         return f"Message sent to {target_agent_id}"
     except Exception as e:
-        print(f"[FLOW] send_to_agent: exception while sending -> {e}")
         print(f"Error sending message to {target_agent_id}: {e}")
         return f"Error sending message to {target_agent_id}: {e}"
 
@@ -387,7 +367,6 @@ def get_mcp_server_url(requested_registry: str, qualified_name: str) -> Optional
     Returns:
         Optional[tuple]: Tuple of (endpoint, config_json, registry_name) if found, None otherwise
     """
-    print("[FLOW] Entering get_mcp_server_url")
     try:
         registry_url = get_registry_url()
         endpoint_url = f"{registry_url}/get_mcp_registry"
@@ -428,7 +407,6 @@ def form_mcp_server_url(url: str, config: dict, registry_name: str) -> Optional[
     Returns:
         Optional[str]: The mcp server URL if smithery api key is available, otherwise None
     """
-    print("[FLOW] Entering form_mcp_server_url")
     try:
         if registry_name == "smithery":
             print("🔑 Using SMITHERY_API_KEY: ", SMITHERY_API_KEY)
@@ -447,7 +425,6 @@ def form_mcp_server_url(url: str, config: dict, registry_name: str) -> Optional[
         return None
 
 async def run_mcp_query(query: str, updated_url: str) -> str:
-    print("[FLOW] Entering run_mcp_query")
     try:
         print(f"In run_mcp_query: MCP query: {query} on {updated_url}")
         
@@ -468,7 +445,6 @@ async def run_mcp_query(query: str, updated_url: str) -> str:
 if not hasattr(A2AClient, 'send_message_threaded'):
     def send_message_threaded(self, message: Message):
         """Send a message in a separate thread without waiting for a response"""
-        print("[FLOW] Entering send_message_threaded")
         thread = threading.Thread(target=self.send_message, args=(message,))
         thread.daemon = True
         thread.start()
@@ -481,104 +457,49 @@ if not hasattr(A2AClient, 'send_message_threaded'):
 # Update handle_message to detect this special format
 def handle_external_message(msg_text, conversation_id, msg):
     """Handle specially formatted external messages"""
-    print("[FLOW] Entering handle_external_message")
     try:
         # Parse the special message format
         lines = msg_text.split('\n')
-
+        
         # Check if this is our special format
         if lines[0] != '__EXTERNAL_MESSAGE__':
-            print("[FLOW] handle_external_message: not external format")
             return None
-
+        
         # Extract metadata from the message
         from_agent = None
         to_agent = None
         message_content = ""
-
+        
         # Parse the header fields
         in_message = False
         for line in lines[1:]:
             if line.startswith('__FROM_AGENT__'):
-                print("[FLOW] handle_external_message: parsing from_agent line")
                 from_agent = line[len('__FROM_AGENT__'):]
             elif line.startswith('__TO_AGENT__'):
-                print("[FLOW] handle_external_message: parsing to_agent line")
                 to_agent = line[len('__TO_AGENT__'):]
             elif line == '__MESSAGE_START__':
-                print("[FLOW] handle_external_message: entering message body")
                 in_message = True
             elif line == '__MESSAGE_END__':
-                print("[FLOW] handle_external_message: exiting message body")
                 in_message = False
             elif in_message:
-                print("[FLOW] handle_external_message: accumulating message body")
                 message_content += line + '\n'
-
+        
         # Trim trailing newline
         message_content = message_content.rstrip()
-
+        
         print(f"Received external message from {from_agent} to {to_agent}")
-
+        
         # Format the message for display in terminal
         formatted_text = f"FROM {from_agent}: {message_content}"
-
+        
         print("Message Text: ", message_content)
         print("UI MODE: ", UI_MODE)
-        print("AGENT_CHAT: ", AGENT_CHAT)
-
-        # If AGENT_CHAT is enabled, process the message directly with Claude and respond
-        if AGENT_CHAT:
-            print(f"AGENT_CHAT enabled: Processing message directly with Claude")
-            agent_id = get_agent_id()
-
-            claude_response = call_claude(
-                message_content,
-                "",
-                conversation_id,
-                f"external>{from_agent}>{agent_id}",
-                SYSTEM_PROMPTS["agent_chat"]
-            )
-
-            if claude_response:
-                print("[FLOW] handle_external_message: claude response generated")
-                response_text = f"Agent {agent_id} response: {claude_response}"
-                log_message(conversation_id, f"external>{from_agent}>{agent_id}", f"Chat with {agent_id}", claude_response)
-
-                if from_agent:
-                    print(f"[FLOW] handle_external_message: sending response to {from_agent} via send_to_agent")
-                    send_metadata = {
-                        'path': f"external>{from_agent}>{agent_id}",
-                        'source_agent': agent_id,
-                        'is_external': True,
-                        'responding_to': from_agent
-                    }
-                    send_result = send_to_agent(from_agent, claude_response, conversation_id, send_metadata)
-                    print(f"[FLOW] handle_external_message: send_to_agent result -> {send_result}")
-                else:
-                    print("[FLOW] handle_external_message: from_agent missing; cannot forward response via send_to_agent")
-
-                return Message(
-                    role=MessageRole.AGENT,
-                    content=TextContent(text=response_text),
-                    parent_message_id=msg.message_id,
-                    conversation_id=conversation_id
-                )
-            else:
-                print("[FLOW] handle_external_message: claude response missing")
-                return Message(
-                    role=MessageRole.AGENT,
-                    content=TextContent(text=f"Agent {agent_id} processed your message but couldn't generate a response"),
-                    parent_message_id=msg.message_id,
-                    conversation_id=conversation_id
-                )
 
         # If in UI mode, forward to all registered UI clients
-        elif UI_MODE:
+        if UI_MODE:
             print(f"Forwarding message to UI client")
-            print("[FLOW] handle_external_message: UI mode branch")
             send_to_ui_client(formatted_text, from_agent, conversation_id)
-
+            
             # Acknowledge receipt to sender
             agent_id = get_agent_id()
             return Message(
@@ -589,7 +510,6 @@ def handle_external_message(msg_text, conversation_id, msg):
             )
         # Otherwise, forward to local terminal (original behavior
         else:
-            print("[FLOW] handle_external_message: local terminal branch")
             try:
                 terminal_client = A2AClient(LOCAL_TERMINAL_URL, timeout=10)
                 terminal_client.send_message_threaded(
@@ -605,7 +525,8 @@ def handle_external_message(msg_text, conversation_id, msg):
                         })
                     )
                 )
-
+                
+                # Acknowledge receipt to sender
                 agent_id = get_agent_id()
                 return Message(
                     role=MessageRole.AGENT,
@@ -614,7 +535,6 @@ def handle_external_message(msg_text, conversation_id, msg):
                     conversation_id=conversation_id
                 )
             except Exception as e:
-                print("[FLOW] handle_external_message: local terminal forwarding failed")
                 print(f"Error forwarding to local terminal: {e}")
                 return Message(
                     role=MessageRole.AGENT,
@@ -622,13 +542,8 @@ def handle_external_message(msg_text, conversation_id, msg):
                     parent_message_id=msg.message_id,
                     conversation_id=conversation_id
                 )
-
+            
     except Exception as e:
-        print("[FLOW] handle_external_message: top-level exception")
-        print(f"Error parsing external message: {e}")
-        return None  # Not our special format or parsing failed
-    except Exception as e:
-        print("[FLOW] handle_external_message: duplicated exception handler")
         print(f"Error parsing external message: {e}")
         return None  # Not our special format or parsing failed
 
@@ -638,9 +553,7 @@ message_improvement_decorators = {}
 
 def message_improver(name=None):
     """Decorator to register message improvement functions"""
-    print("[FLOW] Entering message_improver")
     def decorator(func):
-        print("[FLOW] Entering decorator inside message_improver")
         decorator_name = name or func.__name__
         message_improvement_decorators[decorator_name] = func
         return func
@@ -648,24 +561,20 @@ def message_improver(name=None):
 
 def register_message_improver(name, improver_func):
     """Register a custom message improver function"""
-    print("[FLOW] Entering register_message_improver")
     message_improvement_decorators[name] = improver_func
 
 def get_message_improver(name):
     """Get a registered message improver by name"""
-    print("[FLOW] Entering get_message_improver")
     return message_improvement_decorators.get(name)
 
 def list_message_improvers():
     """List all registered message improvers"""
-    print("[FLOW] Entering list_message_improvers")
     return list(message_improvement_decorators.keys())
 
 # Default improver
 @message_improver("default_claude")
 def default_claude_improver(message_text: str) -> str:
     """Default Claude-based message improvement"""
-    print("[FLOW] Entering default_claude_improver")
     if not IMPROVE_MESSAGES:
         return message_text
     
@@ -684,13 +593,11 @@ class AgentBridge(A2AServer):
     """Global Agent Bridge - Can be used for any agent in the network."""
 
     def __init__(self, *args, **kwargs):
-        print("[FLOW] Entering AgentBridge.__init__")
         super().__init__(*args, **kwargs)
         self.active_improver = "default_claude"  # Default improver
     
     def set_message_improver(self, improver_name):
         """Set the active message improver by name"""
-        print("[FLOW] Entering AgentBridge.set_message_improver")
         if improver_name in message_improvement_decorators:
             self.active_improver = improver_name
             print(f"Message improver set to: {improver_name}")
@@ -701,14 +608,12 @@ class AgentBridge(A2AServer):
     
     def set_custom_improver(self, improver_func, name="custom"):
         """Set a custom improver function"""
-        print("[FLOW] Entering AgentBridge.set_custom_improver")
         register_message_improver(name, improver_func)
         self.active_improver = name
         print(f"Custom message improver '{name}' registered and activated")
 
     def improve_message_direct(self, message_text: str) -> str:
         """Improve a message using the active registered improver."""
-        print("[FLOW] Entering AgentBridge.improve_message_direct")
         # Get the active improver function
         improver_func = message_improvement_decorators.get(self.active_improver)
         
@@ -723,7 +628,6 @@ class AgentBridge(A2AServer):
             return message_text
 
     def handle_message(self, msg: Message) -> Message:
-        print("[FLOW] Entering AgentBridge.handle_message")
         # Ensure we have a conversation ID
         conversation_id = msg.conversation_id or str(uuid.uuid4())
         agent_id = get_agent_id()
@@ -759,7 +663,6 @@ class AgentBridge(A2AServer):
         
         # Handle non-text content
         if not isinstance(msg.content, TextContent):
-            print("[FLOW] handle_message: non-text content branch")
             print(f"Agent {agent_id}: Received non-text content. Returning error.")
             return Message(
                 role = MessageRole.AGENT,
@@ -769,17 +672,14 @@ class AgentBridge(A2AServer):
             )
         
         if user_text.startswith('__EXTERNAL_MESSAGE__'):
-            print("[FLOW] handle_message: external message detected")
             print("--- External Message Detected ---")
             external_response = handle_external_message(user_text, conversation_id, msg)
             if external_response:
-                print("[FLOW] handle_message: returning external response")
                 return external_response
         
         # Regular processing for messages from the local terminal or peer
         # Handle regular processing for messages from the local terminal or peer
         if is_from_peer:
-            print("[FLOW] handle_message: message from peer branch")
             # Handle messages from peer agents - already processed by our terminal
             # Just return acknowledgment
             return Message(
@@ -789,23 +689,19 @@ class AgentBridge(A2AServer):
                 conversation_id=conversation_id
             )
         else:
-            print("[FLOW] handle_message: local terminal branch")
             # Message from local terminal user
             log_message(conversation_id, current_path, f"Local user to Agent {agent_id}", user_text)
             print(f"#jinu - User text: {user_text}")
             # Check if this is a message to another agent (starts with @)
             if user_text.startswith("@"):
-                print("[FLOW] handle_message: @mention branch")
                 # Parse the recipient
                 parts = user_text.split(" ", 1)
                 if len(parts) > 1:
-                    print("[FLOW] handle_message: @mention with payload")
                     target_agent = parts[0][1:]  # Remove the @ symbol
                     message_text = parts[1]
 
                     # Improve message if feature is enabled
                     if IMPROVE_MESSAGES:
-                        print("[FLOW] handle_message: improving @mention message")
                         # message_text = improve_message(message_text, conversation_id, current_path,
                         #     "Do not respond to the content of the message - it's intended for another agent. You are helping an agent communicate better with other agennts.")
                         message_text = self.improve_message_direct(message_text)
@@ -827,7 +723,6 @@ class AgentBridge(A2AServer):
                         conversation_id=conversation_id
                     )
                 else:
-                    print("[FLOW] handle_message: invalid @mention format")
                     # Invalid @ command format
                     return Message(
                         role=MessageRole.AGENT,
@@ -837,13 +732,11 @@ class AgentBridge(A2AServer):
                     )
             
             elif user_text.startswith("#"):
-                print("[FLOW] handle_message: #command branch")
                 # Parse the command
                 print((f"Detected natural language command: {user_text}"))
                 parts = user_text.split(" ", 1)
                 
                 if len(parts)>1 and len(parts[0][1:].split(":",1))==2:
-                    print("[FLOW] handle_message: #command with registry and query")
                     requested_registry,mcp_server_to_call = parts[0][1:].split(":",1)
                     query = parts[1]
                     print(f"Requested registry: {requested_registry}, MCP server to call: {mcp_server_to_call}, query: {query}")
@@ -851,7 +744,6 @@ class AgentBridge(A2AServer):
                     response = get_mcp_server_url(requested_registry,mcp_server_to_call)
                     print("Response from get_mcp_server_url: ", response)
                     if response is None:    
-                        print("[FLOW] handle_message: #command registry lookup failed")
                         return Message(
                             role=MessageRole.AGENT,
                             content=TextContent(text=f"[AGENT {agent_id}] MCP server '{mcp_server_to_call}' not found in registry. Please check the server name and try again."),
@@ -865,7 +757,6 @@ class AgentBridge(A2AServer):
                     mcp_server_final_url = form_mcp_server_url(mcp_server_url, config_details, registry_name)
                     print(f"MCP server final URL: {mcp_server_final_url}")
                     if mcp_server_final_url is None:
-                        print("[FLOW] handle_message: #command missing api key/config")
                         return Message(
                             role=MessageRole.AGENT,
                             content=TextContent(text=f"[AGENT {agent_id}] Ensure the required API key for registery is in env file"),
@@ -884,7 +775,6 @@ class AgentBridge(A2AServer):
                     )
                     
                 else:
-                    print("[FLOW] handle_message: invalid #command format")
                     # Invalid # command format
                     return Message(
                         role=MessageRole.AGENT,
@@ -895,14 +785,12 @@ class AgentBridge(A2AServer):
             
             # Check if this is a command (starts with /)
             elif user_text.startswith("/"):
-                print("[FLOW] handle_message: /command branch")
                 # Parse the command
                 parts = user_text.split(" ", 1)
                 command = parts[0][1:] if len(parts) > 0 else ""
                 
                 # Handle special commands
                 if command == "quit":
-                    print("[FLOW] handle_message: /quit branch")
                     # Quit command - acknowledge but let terminal handle the actual quitting
                     return Message(
                         role = MessageRole.AGENT,
@@ -912,7 +800,6 @@ class AgentBridge(A2AServer):
                     )
                 
                 elif command == "help":
-                    print("[FLOW] handle_message: /help branch")
                     # Help command - show only valid commands
                     help_text = """Available commands:
                         /help - Show this help message
@@ -927,10 +814,8 @@ class AgentBridge(A2AServer):
                     )
                 
                 elif command == "query":
-                    print("[FLOW] handle_message: /query branch")
                     # Process query command - this is for local assistance
                     if len(parts) > 1:
-                        print("[FLOW] handle_message: /query with payload")
                         query_text = parts[1]
                         print(f"Processing query command: '{query_text}'")
 
@@ -959,7 +844,6 @@ class AgentBridge(A2AServer):
 
                         return response_message
                     else:
-                        print("[FLOW] handle_message: /query missing payload")
                         # No query text provided
                         return Message(
                             role = MessageRole.AGENT,
@@ -968,7 +852,6 @@ class AgentBridge(A2AServer):
                             conversation_id = conversation_id
                         )
                 else:
-                    print("[FLOW] handle_message: unknown /command")
                     # Invalid command
                     help_text = """Unknown command. Available commands:
                         /help - Show this help message
@@ -981,9 +864,8 @@ class AgentBridge(A2AServer):
                             parent_message_id = msg.message_id,
                             conversation_id = conversation_id
                         )
-
+                            
             else:
-                print("[FLOW] handle_message: default chat branch")
                 # Regular message - process locally 
                 claude_response = call_claude(user_text, additional_context, conversation_id, current_path) or user_text
                 formatted_response = f"[AGENT {agent_id}] {claude_response}"
@@ -1012,6 +894,5 @@ if __name__ == "__main__":
     print(f"Starting Agent {agent_id} bridge on port {PORT}")
     print(f"Agent terminal port: {TERMINAL_PORT}")
     print(f"Message improvement feature is {'ENABLED' if IMPROVE_MESSAGES else 'DISABLED'}")
-    print(f"agent chat is {'ENABLED' if AGENT_CHAT else 'DISABLED'}")
     print(f"Logging conversations to {os.path.abspath(LOG_DIR)}")
     run_server(AgentBridge(), host="0.0.0.0", port=PORT)

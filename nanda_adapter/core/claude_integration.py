@@ -25,7 +25,7 @@ anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # Configure system prompts based on agent ID
 SYSTEM_PROMPTS = {
-    "default": "You are Claude assisting a user (Agent). Assume the messages you get are part of a conversation with other agents. Help the user communicate effectively with other agents."
+    "default": "You are a helpful AI assistant. Answer questions directly and concisely without mentioning agents, messaging systems, or your role. Just provide helpful, accurate information."
 }
 
 # Configure message improvement prompts

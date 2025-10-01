@@ -1,16 +1,16 @@
 # NANDA Adapter
+
 Bring your local agent. Make it **persistent**, **discoverable** and **interoperable** on the global internet with NANDA.
 
 Help us build an Open and Vibrant Internet of Agents
 
 ## Features
 
-- **Multiple AI Frameworks**: Support for LangChain, CrewAI, and any custom logic.
-- **Multi-protocol Communication**: Built-in protocol that allows universal communication
-- **Global Index**: Automatic agent discovery via MIT NANDA Index
-- **SSL Support**: Production-ready with Let's Encrypt certificates
+-   **Multiple AI Frameworks**: Support for LangChain, CrewAI, and any custom logic.
+-   **Multi-protocol Communication**: Built-in protocol that allows universal communication
+-   **Global Index**: Automatic agent discovery via MIT NANDA Index
+-   **SSL Support**: Production-ready with Let's Encrypt certificates
 
-  
 <img width="768" height="457" alt="Screenshot 2025-07-15 at 8 41 36 PM" src="https://github.com/user-attachments/assets/f23e32dd-ddda-43a5-a405-03ad4e9dbc5a" />
 
 ## Installation
@@ -28,6 +28,7 @@ pip install nanda-adapter
 > git clone github.com/projnanda/adapter
 
 ### 2. Setup dependencies
+
 > cd nanda_agent/examples
 
 > pip install -r requirements.txt
@@ -51,13 +52,15 @@ pip install nanda-adapter
 > export DOMAIN_NAME="<YOUR_DOMAIN_NAME.COM>
 
 ### 5. Run an example agent (langchain_pirate.py)
+
 > nohup python3 langchain_pirate.py > out.log 2>&1 &
 
 ### 6. Get your enrollment link from Log File
+
 > cat out.log
 
-
 ## Examples for How to create your own agent
+
 You can create an agent using your custom ReACT framework or any agent package like LangChain, CrewAI etc.
 
 Then, you can deploy to internet of Agents using one line of code via NANDA.
@@ -66,7 +69,7 @@ Then, you can deploy to internet of Agents using one line of code via NANDA.
 
 ```bash
 2.1 Write your improvement logic using the framework you like. Here it is a simple moduule without any llm call.
-2.4 Move this file into your server(the domain should match to the IP address) and run this python file in background 
+2.4 Move this file into your server(the domain should match to the IP address) and run this python file in background
 ```
 
 ```python
@@ -76,32 +79,32 @@ import os
 
 def create_custom_improvement():
     """Create your custom improvement function"""
-    
+
     def custom_improvement_logic(message_text: str) -> str:
         """Transform messages according to your logic"""
         try:
             # Your custom transformation logic here
             improved_text = message_text.replace("hello", "greetings")
             improved_text = improved_text.replace("goodbye", "farewell")
-            
+
             return improved_text
         except Exception as e:
             print(f"Error in improvement: {e}")
             return message_text  # Fallback to original
-    
+
     return custom_improvement_logic
 
 def main():
     # Create your improvement function
     my_improvement = create_custom_improvement()
-    
+
     # Initialize NANDA with your custom logic
     nanda = NANDA(my_improvement)
-    
+
     # Start the server
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
     domain = os.getenv("DOMAIN_NAME")
-    
+
     nanda.start_server_api(anthropic_key, domain)
 
 if __name__ == "__main__":
@@ -121,17 +124,17 @@ def create_langchain_improvement():
         api_key=os.getenv("ANTHROPIC_API_KEY"),
         model="claude-3-haiku-20240307"
     )
-    
+
     prompt = PromptTemplate(
         input_variables=["message"],
         template="Make this message more professional: {message}"
     )
-    
+
     chain = prompt | llm | StrOutputParser()
-    
+
     def langchain_improvement(message_text: str) -> str:
         return chain.invoke({"message": message_text})
-    
+
     return langchain_improvement
 
 # Use it
@@ -155,25 +158,25 @@ def create_crewai_improvement():
         api_key=os.getenv("ANTHROPIC_API_KEY"),
         model="claude-3-haiku-20240307"
     )
-    
+
     improvement_agent = Agent(
         role="Message Improver",
         goal="Improve message clarity and professionalism",
         backstory="You are an expert communicator.",
         llm=llm
     )
-    
+
     def crewai_improvement(message_text: str) -> str:
         task = Task(
             description=f"Improve this message: {message_text}",
             agent=improvement_agent,
             expected_output="An improved version of the message"
         )
-        
+
         crew = Crew(agents=[improvement_agent], tasks=[task])
         result = crew.kickoff()
         return str(result)
-    
+
     return crewai_improvement
 
 # Use it
@@ -204,8 +207,8 @@ EC2 cmd: cd /home/ec2-user/test-agents && python3.11 -m venv <YOUR_ENV_NAME> && 
 
 4. Generate SSL certificates on this machine for your domain.
 (For ex: You should ensure in  DNS an A record is mapping this domain <DOMAIN_NAME> to IP address <YOUR_IP>). Ensure the domain has to be changed
-   
-cmd : sudo certbot certonly --standalone -d <YOUR_DOMAIN_NAME> 
+
+cmd : sudo certbot certonly --standalone -d <YOUR_DOMAIN_NAME>
 
 5. Move certificates to current folder for access and provide required access
 Ensure the domain has to be changed
@@ -215,13 +218,13 @@ Ensure the domain has to be changed
     sudo chown $USER:$USER fullchain.pem privkey.pem
     chmod 600 fullchain.pem privkey.pem
 
-6. Install the requirements file 
-cmd : python -m pip install --upgrade pip && pip3 install -r requirements.txt 
+6. Install the requirements file
+cmd : python -m pip install --upgrade pip && pip3 install -r requirements.txt
 
-7. Ensure the env variables are available either through .env or you can provide export 
+7. Ensure the env variables are available either through .env or you can provide export
 cmd : export ANTHROPIC_API_KEY=my-anthropic-key && export DOMAIN_NAME=my-domain
 
-8. Run the new improvement logic as a batch process 
+8. Run the new improvement logic as a batch process
 cmd : nohup python3 langchain_pirate.py > out.log 2>&1 &
 
 9. Open the log file and you could find the agent enrollment link
@@ -232,21 +235,61 @@ cmd : cat out.log
 ```
 
 The framework will automatically:
-- Generate SSL certificates using Let's Encrypt
-- Set up proper agent registration
-- Configure production-ready logging
 
+-   Generate SSL certificates using Let's Encrypt
+-   Set up proper agent registration
+-   Configure production-ready logging
 
 ## Appendix: Configuration Details
 
 ### Environment Variables
+
 You need the following environment details ()
 
-- `ANTHROPIC_API_KEY`: Your Anthropic API key (required)
-- `DOMAIN_NAME`: Domain name for SSL certificates (required)
-- `AGENT_ID`: Custom agent ID (optional, auto-generated if not provided)
-- `PORT`: Agent bridge port (optional, default: 6000)
-- `IMPROVE_MESSAGES`: Enable/disable message improvement (optional, default: true)
+-   `ANTHROPIC_API_KEY`: Your Anthropic API key (required)
+-   `DOMAIN_NAME`: Domain name for SSL certificates (required)
+-   `AGENT_ID`: Custom agent ID (optional, auto-generated if not provided)
+-   `PORT`: Agent bridge port (optional, default: 6000)
+-   `IMPROVE_MESSAGES`: Enable/disable message improvement (optional, default: true)
+
+### Registry Configuration
+
+The NANDA adapter supports two registry types for agent discovery:
+
+#### Local Registry (Default)
+
+Uses a local JSON file for agent registration:
+
+```bash
+USE_LOCAL_REGISTRY=true  # Default for local development
+```
+
+#### MongoDB Registry (Distributed)
+
+Uses MongoDB for distributed agent discovery:
+
+```bash
+USE_LOCAL_REGISTRY=false
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/nanda?retryWrites=true&w=majority
+MONGODB_DATABASE=nanda
+MONGODB_COLLECTION=agents
+```
+
+**Benefits of MongoDB Registry:**
+
+-   Distributed agent discovery across multiple machines
+-   Real-time agent availability tracking
+-   Scalable for production environments
+-   Centralized registry for large deployments
+
+**Setup:**
+
+1. Create a MongoDB cluster (Atlas, local, or Docker)
+2. Add your connection string to `.env`
+3. Set `USE_LOCAL_REGISTRY=false`
+4. Test with: `python test_mongo_registry.py`
+
+See [MONGODB_REGISTRY.md](MONGODB_REGISTRY.md) for detailed setup instructions.
 
 ### Production Deployment
 
@@ -262,11 +305,11 @@ nanda-pirate
 
 When running with `start_server_api()`, the following endpoints are available:
 
-- `GET /api/health` - Health check
-- `POST /api/send` - Send message to agent
-- `GET /api/agents/list` - List registered agents
-- `POST /api/receive_message` - Receive message from agent
-- `GET /api/render` - Get latest message
+-   `GET /api/health` - Health check
+-   `POST /api/send` - Send message to agent
+-   `GET /api/agents/list` - List registered agents
+-   `POST /api/receive_message` - Receive message from agent
+-   `GET /api/render` - Get latest message
 
 ### Agent Communication
 
@@ -306,14 +349,16 @@ The NANDA framework consists of:
 ### Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/nanda-ai/nanda-adapter/issues
-  
+
+-   GitHub Issues: https://github.com/nanda-ai/nanda-adapter/issues
+
 ## Changelog
 
 ### v1.0.0
-- Initial release
-- Basic NANDA framework
-- LangChain integration
-- CrewAI integration
-- Example agents
-- Production deployment support
+
+-   Initial release
+-   Basic NANDA framework
+-   LangChain integration
+-   CrewAI integration
+-   Example agents
+-   Production deployment support

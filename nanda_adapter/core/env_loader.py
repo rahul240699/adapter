@@ -157,3 +157,34 @@ if __name__ == "__main__":
         print(f"🔑 API Key loaded successfully: {api_key[:10]}...{api_key[-10:]}")
     else:
         print("❌ API Key validation failed")
+
+
+def load_env_vars(env_file: str = ".env") -> dict:
+    """
+    Load environment variables from .env file and return as dictionary.
+    
+    Args:
+        env_file: Path to the .env file (default: ".env")
+        
+    Returns:
+        Dictionary of environment variables
+    """
+    # First load the .env file
+    load_env_file(env_file)
+    
+    # Return relevant environment variables as dict
+    env_vars = {}
+    
+    # Registry configuration
+    env_vars["USE_LOCAL_REGISTRY"] = os.getenv("USE_LOCAL_REGISTRY", "true")
+    env_vars["MONGODB_URI"] = os.getenv("MONGODB_URI")
+    env_vars["MONGODB_DATABASE"] = os.getenv("MONGODB_DATABASE", "nanda")
+    env_vars["MONGODB_COLLECTION"] = os.getenv("MONGODB_COLLECTION", "agents")
+    
+    # Other configuration
+    env_vars["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY")
+    env_vars["AGENT_ID"] = os.getenv("AGENT_ID", "default")
+    env_vars["DEBUG"] = os.getenv("DEBUG", "false")
+    env_vars["LOG_LEVEL"] = os.getenv("LOG_LEVEL", "INFO")
+    
+    return env_vars

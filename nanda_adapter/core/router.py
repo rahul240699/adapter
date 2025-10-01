@@ -18,7 +18,7 @@ Example:
 """
 
 from typing import Optional, Callable
-from .registry import LocalRegistry
+from .registry import LocalRegistry, RegistryInterface
 from .protocol import A2AMessage, format_a2a_message
 
 # Optional dependency - only needed if actually sending messages
@@ -51,7 +51,7 @@ class MessageRouter:
     def __init__(
         self,
         agent_id: str,
-        registry: LocalRegistry,
+        registry: RegistryInterface,
         improver: Optional[Callable[[str], str]] = None,
         claude_handler: Optional[Callable[[str], str]] = None
     ):

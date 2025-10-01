@@ -18,6 +18,10 @@ dist/
 logs/
 conversation_logs/
 
+# Virtual environment
+venv/
+env/
+
 # Development files
 *.local.md
 test_*.py
@@ -27,3 +31,5 @@ demo_*.py
 curl_test_*.sh
 
 venv/
+
+mongodb_registry_examples.py

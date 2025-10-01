@@ -31,7 +31,7 @@ Example:
 import os
 from typing import Optional, Callable
 
-from .core.registry import LocalRegistry
+from .core.registry import LocalRegistry, create_registry, RegistryInterface
 from .core.router import MessageRouter
 from .core.protocol import parse_a2a_message, is_a2a_message
 from .core.logger import ConversationLogger
@@ -65,7 +65,7 @@ class SimpleNANDA:
         host: Host string in format "hostname:port" (e.g., "localhost:6000")
         hostname: Extracted hostname from host parameter
         port: Extracted port number from host parameter
-        registry: LocalRegistry instance for agent discovery
+        registry: Registry instance for agent discovery (LocalRegistry or MongoRegistry)
         router: MessageRouter for handling messages
         logger: ConversationLogger for JSONL logging
         improvement_logic: Optional function to transform outgoing messages
@@ -87,7 +87,7 @@ class SimpleNANDA:
         improvement_logic: Optional[Callable[[str], str]] = None,
         anthropic_api_key: Optional[str] = None,
         require_anthropic: bool = True,
-        registry: Optional[LocalRegistry] = None,
+        registry: Optional[RegistryInterface] = None,
         log_dir: str = "./logs"
     ):
         """
@@ -100,7 +100,7 @@ class SimpleNANDA:
             improvement_logic: Optional function to transform messages
             anthropic_api_key: Claude API key (or set ANTHROPIC_API_KEY env var)
             require_anthropic: Whether Claude is required (default: True)
-            registry: Custom registry instance (default: LocalRegistry())
+            registry: Custom registry instance (default: auto-detected from .env)
             log_dir: Base directory for conversation logs (default: "./logs")
 
         Raises:
@@ -140,8 +140,8 @@ class SimpleNANDA:
         # Parse host:port
         self._parse_host(host)
 
-        # Initialize registry (use provided or create new)
-        self.registry = registry or LocalRegistry()
+        # Initialize registry (use provided or create based on .env config)
+        self.registry = registry or create_registry()
 
         # Lazy-initialize Anthropic client (Bug fix - see docs/BUGS_AND_ISSUES.md)
         self._anthropic_client = None
@@ -181,7 +181,15 @@ class SimpleNANDA:
         self.registry.register(agent_id, agent_url)
 
         print(f"✓ Agent '{agent_id}' initialized at {agent_url}")
-        print(f"✓ Registry: {self.registry.registry_file}")
+        
+        # Show registry type and info
+        if hasattr(self.registry, 'registry_file'):
+            print(f"✓ Registry: LocalRegistry ({self.registry.registry_file})")
+        elif hasattr(self.registry, 'database_name'):
+            print(f"✓ Registry: MongoRegistry ({self.registry.database_name}.{self.registry.collection_name})")
+        else:
+            print(f"✓ Registry: {type(self.registry).__name__}")
+            
         print(f"✓ Logs: {self.logger.agent_log_dir}")
 
     def _parse_host(self, host: str) -> None:

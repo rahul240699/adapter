@@ -38,7 +38,7 @@ Update your `.env` file:
 
 ```bash
 # MongoDB Configuration
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/nanda?retryWrites=true&w=majority
+MONGODB_URI=mongo_url
 MONGODB_DATABASE=nanda
 MONGODB_COLLECTION=agents
 

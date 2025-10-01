@@ -304,7 +304,7 @@ class SimpleNANDA:
 
                 # Check if standard A2A external message
                 if is_a2a_message(user_text):
-                    # print(f"[SIMPLE_NANDA] Detected standard A2A message format")
+                    print(f"[SIMPLE_NANDA] Detected standard A2A message format")
                     a2a_msg = parse_a2a_message(user_text)
                     if a2a_msg:
                         # Set conversation_id from context

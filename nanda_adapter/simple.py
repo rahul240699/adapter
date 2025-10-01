@@ -286,6 +286,16 @@ class SimpleNANDA:
         self.port = port
 
     @property
+    def agent_url(self) -> str:
+        """
+        Get the agent's public URL for registration and display.
+        
+        Returns:
+            Public URL where this agent can be reached
+        """
+        return self.public_url
+
+    @property
     def anthropic(self) -> Optional[Anthropic]:
         """
         Lazy-load Anthropic client (Bug fix).

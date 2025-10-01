@@ -60,16 +60,19 @@ def main():
     print(f"🚀 Starting interactive {args.agent_id} with @agent routing")
     print("=" * 60)
     
+    # Get port from environment or use default
+    port = int(os.getenv('PORT', port_map[args.agent_id]))
+    
     # Create agent with Claude-based message improvement
+    # SimpleNANDA will handle network configuration through environment variables
     agent = SimpleNANDA(
         agent_id=args.agent_id,
-        host=f"localhost:{port_map[args.agent_id]}",
         improvement_logic=create_claude_improver(),
         require_anthropic=True
     )
     
     print(f"\n✅ {args.agent_id} ready!")
-    print(f"🌐 Running on: http://localhost:{port_map[args.agent_id]}")
+    print(f"🌐 Running on: {agent.agent_url}")
     
     # If server-only mode, just start the server
     if args.server_only:

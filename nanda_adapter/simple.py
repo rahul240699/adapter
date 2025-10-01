@@ -35,6 +35,8 @@ from .core.registry import LocalRegistry, create_registry, RegistryInterface
 from .core.router import MessageRouter
 from .core.protocol import parse_a2a_message, is_a2a_message
 from .core.logger import ConversationLogger
+from .core.network_utils import get_public_url, print_network_debug_info
+from .core.env_loader import load_env_vars
 # A2A messaging imports removed - using standard protocol
 from .core.claude_integration import call_claude
 
@@ -134,11 +136,13 @@ class SimpleNANDA:
             )
 
         self.agent_id = agent_id
-        self.host = host
         self.improvement_logic = improvement_logic
 
-        # Parse host:port
-        self._parse_host(host)
+        # Load environment configuration for EC2 support
+        env_vars = load_env_vars()
+        
+        # Network configuration with EC2 auto-detection
+        self._setup_networking(host, env_vars)
 
         # Initialize registry (use provided or create based on .env config)
         self.registry = registry or create_registry()
@@ -176,11 +180,12 @@ class SimpleNANDA:
 
         # A2A message handler removed - using standard protocol
 
-        # Register with registry
-        agent_url = f"http://{self.hostname}:{self.port}"
-        self.registry.register(agent_id, agent_url)
+        # Register with registry using public URL for EC2 compatibility
+        self.registry.register(agent_id, self.public_url)
 
-        print(f"✓ Agent '{agent_id}' initialized at {agent_url}")
+        print(f"✓ Agent '{agent_id}' initialized")
+        print(f"✓ Public URL: {self.public_url}")
+        print(f"✓ Internal bind: {self.internal_host}:{self.port}")
         
         # Show registry type and info
         if hasattr(self.registry, 'registry_file'):
@@ -191,6 +196,55 @@ class SimpleNANDA:
             print(f"✓ Registry: {type(self.registry).__name__}")
             
         print(f"✓ Logs: {self.logger.agent_log_dir}")
+
+    def _setup_networking(self, host: str, env_vars: dict) -> None:
+        """
+        Setup networking configuration with EC2 auto-detection support.
+        
+        Args:
+            host: Host parameter from constructor (for backward compatibility)
+            env_vars: Environment variables loaded from .env
+        """
+        # Determine port - environment variable takes precedence
+        env_port = env_vars.get("PORT")
+        if env_port:
+            try:
+                self.port = int(env_port)
+            except ValueError:
+                print(f"⚠️  Invalid PORT in environment: {env_port}, using default 6000")
+                self.port = 6000
+        else:
+            # Parse from host parameter (backward compatibility)
+            if ':' in host:
+                try:
+                    _, port_str = host.rsplit(':', 1)
+                    self.port = int(port_str)
+                except ValueError:
+                    print(f"⚠️  Invalid port in host '{host}', using default 6000")
+                    self.port = 6000
+            else:
+                self.port = 6000
+        
+        # Internal host binding (for server)
+        self.internal_host = env_vars.get("INTERNAL_HOST", "0.0.0.0")
+        
+        # Determine public URL for registration
+        preferred_url = env_vars.get("PUBLIC_URL", "auto")
+        self.public_url = get_public_url(self.port, preferred_url)
+        
+        # For backward compatibility, set hostname (used by server binding)
+        if ':' in host:
+            self.hostname = host.split(':')[0]
+        else:
+            self.hostname = "localhost"
+        
+        # Override hostname for EC2
+        if self.internal_host == "0.0.0.0":
+            self.hostname = "0.0.0.0"
+        
+        # Debug info if requested
+        if env_vars.get("DEBUG", "false").lower() == "true":
+            print_network_debug_info()
 
     def _parse_host(self, host: str) -> None:
         """
@@ -296,9 +350,8 @@ class SimpleNANDA:
         """
         class AgentServer(A2AServer):
             def __init__(self, parent):
-                # Pass the agent URL to A2AServer
-                agent_url = f"http://{parent.hostname}:{parent.port}"
-                super().__init__(url=agent_url)
+                # Use the public URL for A2AServer (for EC2 compatibility)
+                super().__init__(url=parent.public_url)
                 self.parent = parent
 
             def handle_message(self, msg: Message) -> Message:
@@ -370,13 +423,14 @@ class SimpleNANDA:
                 )
 
         server = AgentServer(self)
-        print(f"\n🚀 Agent '{self.agent_id}' starting on {self.hostname}:{self.port}")
-        print(f"📍 Registered at http://{self.hostname}:{self.port}")
+        print(f"\n🚀 Agent '{self.agent_id}' starting")
+        print(f"🔗 Public URL: {self.public_url}")
+        print(f"🌐 Internal bind: {self.internal_host}:{self.port}")
         print(f"📝 Logs: {self.logger.agent_log_dir}")
         print(f"\nPress Ctrl+C to stop\n")
 
         try:
-            run_server(server, host="0.0.0.0", port=self.port)
+            run_server(server, host=self.internal_host, port=self.port)
         except KeyboardInterrupt:
             print("\n\nShutting down...")
             print(f"✓ Agent '{self.agent_id}' stopped")

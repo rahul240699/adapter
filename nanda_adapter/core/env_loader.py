@@ -181,6 +181,11 @@ def load_env_vars(env_file: str = ".env") -> dict:
     env_vars["MONGODB_DATABASE"] = os.getenv("MONGODB_DATABASE", "nanda")
     env_vars["MONGODB_COLLECTION"] = os.getenv("MONGODB_COLLECTION", "agents")
     
+    # Network configuration for EC2 deployment
+    env_vars["PUBLIC_URL"] = os.getenv("PUBLIC_URL", "auto")
+    env_vars["INTERNAL_HOST"] = os.getenv("INTERNAL_HOST", "0.0.0.0")
+    env_vars["PORT"] = os.getenv("PORT", "6000")
+    
     # Other configuration
     env_vars["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY")
     env_vars["AGENT_ID"] = os.getenv("AGENT_ID", "default")

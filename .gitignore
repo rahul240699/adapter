@@ -33,3 +33,5 @@ curl_test_*.sh
 venv/
 
 mongodb_registry_examples.py
+ec2_agent_demo.py
+nanda-agent-key.pem

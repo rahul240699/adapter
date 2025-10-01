@@ -18,19 +18,8 @@ def get_ec2_public_ip() -> Optional[str]:
     Returns:
         Public IP address string or None if not on EC2 or no public IP
     """
-    try:
-        # AWS metadata service endpoint
-        response = requests.get(
-            'http://169.254.169.254/latest/meta-data/public-ipv4',
-            timeout=2
-        )
-        if response.status_code == 200:
-            ip = response.text.strip()
-            if ip and ip != '':
-                return ip
-    except Exception:
-        pass
-    return None
+    ip = _get_ec2_metadata('public-ipv4')
+    return ip if ip and ip != '' else None
 
 
 def get_ec2_private_ip() -> Optional[str]:
@@ -40,18 +29,8 @@ def get_ec2_private_ip() -> Optional[str]:
     Returns:
         Private IP address string or None if not on EC2
     """
-    try:
-        response = requests.get(
-            'http://169.254.169.254/latest/meta-data/local-ipv4',
-            timeout=2
-        )
-        if response.status_code == 200:
-            ip = response.text.strip()
-            if ip and ip != '':
-                return ip
-    except Exception:
-        pass
-    return None
+    ip = _get_ec2_metadata('local-ipv4')
+    return ip if ip and ip != '' else None
 
 
 def get_ec2_public_hostname() -> Optional[str]:
@@ -61,17 +40,65 @@ def get_ec2_public_hostname() -> Optional[str]:
     Returns:
         Public hostname string or None if not on EC2 or no public hostname
     """
+    hostname = _get_ec2_metadata('public-hostname')
+    return hostname if hostname and hostname != '' else None
+
+
+def _get_ec2_metadata_token() -> Optional[str]:
+    """
+    Get EC2 metadata token for IMDSv2.
+    
+    Returns:
+        Token string or None if not available
+    """
     try:
-        response = requests.get(
-            'http://169.254.169.254/latest/meta-data/public-hostname',
+        response = requests.put(
+            'http://169.254.169.254/latest/api/token',
+            headers={'X-aws-ec2-metadata-token-ttl-seconds': '21600'},
             timeout=2
         )
         if response.status_code == 200:
-            hostname = response.text.strip()
-            if hostname and hostname != '':
-                return hostname
+            return response.text.strip()
     except Exception:
         pass
+    return None
+
+
+def _get_ec2_metadata(path: str) -> Optional[str]:
+    """
+    Get EC2 metadata with IMDSv2 support.
+    
+    Args:
+        path: Metadata path (e.g., 'instance-id', 'public-ipv4')
+        
+    Returns:
+        Metadata value or None if not available
+    """
+    # Try IMDSv2 first (with token)
+    token = _get_ec2_metadata_token()
+    if token:
+        try:
+            response = requests.get(
+                f'http://169.254.169.254/latest/meta-data/{path}',
+                headers={'X-aws-ec2-metadata-token': token},
+                timeout=2
+            )
+            if response.status_code == 200:
+                return response.text.strip()
+        except Exception:
+            pass
+    
+    # Fallback to IMDSv1 (without token)
+    try:
+        response = requests.get(
+            f'http://169.254.169.254/latest/meta-data/{path}',
+            timeout=2
+        )
+        if response.status_code == 200:
+            return response.text.strip()
+    except Exception:
+        pass
+    
     return None
 
 
@@ -82,16 +109,7 @@ def get_ec2_instance_id() -> Optional[str]:
     Returns:
         Instance ID string or None if not on EC2
     """
-    try:
-        response = requests.get(
-            'http://169.254.169.254/latest/meta-data/instance-id',
-            timeout=2
-        )
-        if response.status_code == 200:
-            return response.text.strip()
-    except Exception:
-        pass
-    return None
+    return _get_ec2_metadata('instance-id')
 
 
 def is_ec2_instance() -> bool:

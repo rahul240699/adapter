@@ -183,8 +183,13 @@ class MongoRegistry(RegistryInterface):
         self.database_name = database
         self.collection_name = collection
         
-        # Initialize MongoDB client
-        self.client = MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000)
+        # Initialize MongoDB client with TLS configuration
+        self.client = MongoClient(
+            mongodb_uri,
+            serverSelectionTimeoutMS=5000,
+            tls=True,
+            tlsAllowInvalidCertificates=True  # Allow invalid certificates for dev
+        )
         
         # Test connection
         try:

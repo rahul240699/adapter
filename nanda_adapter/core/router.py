@@ -37,6 +37,8 @@ try:
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
+    create_mcp_registry = None
+    MCPRegistry = None
 
 
 def form_mcp_server_url(endpoint: str, config: dict, registry_provider: str) -> str:
@@ -122,7 +124,7 @@ class MessageRouter:
         registry: RegistryInterface,
         improver: Optional[Callable[[str], str]] = None,
         claude_handler: Optional[Callable[[str], str]] = None,
-        mcp_registry: Optional[MCPRegistry] = None
+        mcp_registry = None
     ):
         """
         Initialize message router.

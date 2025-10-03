@@ -42,6 +42,16 @@ class MCPRegistry:
         self._db = None
         self._collection = None
         
+        # Establish connection immediately
+        self._connect()
+        
+    @property
+    def collection(self):
+        """Get the MongoDB collection, ensuring connection is established."""
+        if not self._collection:
+            self._connect()
+        return self._collection
+        
     def _connect(self) -> bool:
         """
         Connect to MongoDB.
@@ -51,7 +61,14 @@ class MCPRegistry:
         """
         try:
             if not self._client:
-                self._client = MongoClient(self.mongodb_uri)
+                # MongoDB Atlas connection with TLS configuration
+                self._client = MongoClient(
+                    self.mongodb_uri,
+                    tls=True,
+                    tlsAllowInvalidCertificates=True,  # Allow invalid certificates for dev
+                    connectTimeoutMS=30000,
+                    serverSelectionTimeoutMS=30000
+                )
                 self._db = self._client[self.database_name]
                 self._collection = self._db[self.collection_name]
                 
@@ -126,8 +143,11 @@ class MCPRegistry:
         Returns:
             Server configuration dict or None if not found
         """
+        if not self._connect():
+            return None
+            
         try:
-            result = self.collection.find_one({
+            result = self._collection.find_one({
                 "registry_provider": registry_provider,
                 "server_name": server_name
             })
@@ -152,8 +172,11 @@ class MCPRegistry:
         Returns:
             Server configuration dict or None if not found
         """
+        if not self._connect():
+            return None
+            
         try:
-            result = self.collection.find_one({
+            result = self._collection.find_one({
                 "server_name": server_name
             })
             
@@ -201,15 +224,15 @@ class MCPRegistry:
             logger.error(f"❌ Error looking up MCP server by name {server_name}: {e}")
             return None
     
-    def list_servers(self, registry_provider: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_servers(self, registry_provider: Optional[str] = None) -> List[dict]:
         """
-        List all registered MCP servers.
+        List all MCP servers in the registry.
         
         Args:
-            registry_provider: Filter by registry provider (optional)
+            registry_provider: Optional filter by registry provider
             
         Returns:
-            List of server configuration dictionaries
+            List of server configuration dicts
         """
         if not self._connect():
             return []
@@ -221,16 +244,14 @@ class MCPRegistry:
                 
             results = list(self._collection.find(query))
             
-            # Remove MongoDB internal fields
+            # Remove MongoDB _id from results
             for result in results:
                 result.pop('_id', None)
                 
-            logger.info(f"✅ Found {len(results)} MCP servers" + 
-                       (f" in {registry_provider}" if registry_provider else ""))
             return results
             
-        except PyMongoError as e:
-            logger.error(f"❌ Error listing MCP servers: {e}")
+        except Exception as e:
+            print(f"Error listing MCP servers: {e}")
             return []
     
     def unregister_server(self, qualified_name: str) -> bool:

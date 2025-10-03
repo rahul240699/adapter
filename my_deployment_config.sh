@@ -14,8 +14,8 @@ REPO_BRANCH="feature/remote-deployment"                # Branch to deploy
 # Format: "IP:AGENT_ID:PORT:MODE"
 # MODE can be "interactive" or "server"
 INSTANCES=(
-    "98.88.254.243:agent_c:6001:interactive"
-    "23.22.165.192:agent_d:6002:server"
+    "13.222.1.139:agent_c:6001:interactive"
+    "54.146.145.127:agent_d:6002:server"
 )
 
 # Optional: Custom deployment directory (default: repository name)

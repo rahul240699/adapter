@@ -17,6 +17,7 @@ Example:
     >>> response = router.route("@agent_b Hello!", "conv_001")
 """
 
+import asyncio
 from typing import Optional, Callable
 from .registry import LocalRegistry, RegistryInterface
 from .protocol import A2AMessage, format_a2a_message
@@ -28,6 +29,73 @@ try:
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
+
+# MCP support imports
+try:
+    from .mcp_registry import create_mcp_registry, MCPRegistry
+    from .mcp_client import MCPClient
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+
+
+def form_mcp_server_url(endpoint: str, config: dict, registry_provider: str) -> str:
+    """
+    Form complete MCP server URL from endpoint and configuration.
+    
+    Args:
+        endpoint: Base MCP server endpoint 
+        config: Additional configuration (API keys, etc.)
+        registry_provider: The registry provider name
+        
+    Returns:
+        Complete MCP server URL or None if missing requirements
+    """
+    try:
+        # Handle different endpoint formats
+        if endpoint.startswith('http'):
+            # Already a complete URL
+            base_url = endpoint
+        elif endpoint.startswith('/'):
+            # Relative path - need to form full URL
+            # This would depend on your MCP server hosting setup
+            base_url = f"http://localhost:3000{endpoint}"
+        else:
+            # Assume it's a service name that needs full URL construction
+            base_url = f"http://{endpoint}"
+
+        # Add API keys or other config parameters as needed
+        # This is where you'd handle provider-specific URL formation
+        if 'api_key' in config:
+            # Some MCP servers may need API keys in URL or headers
+            pass
+
+        return base_url
+        
+    except Exception as e:
+        print(f"Error forming MCP server URL: {e}")
+        return None
+
+
+async def run_mcp_query(query: str, mcp_server_url: str) -> str:
+    """
+    Execute an async MCP query against the specified server.
+    
+    Args:
+        query: The query string to send to MCP server
+        mcp_server_url: Complete URL of the MCP server
+        
+    Returns:
+        Response from MCP server or error message
+    """
+    try:
+        # Use the MCP client to execute the query
+        async with MCPClient() as client:
+            result = await client.process_query(query, mcp_server_url)
+            return result
+            
+    except Exception as e:
+        return f"MCP query error: {str(e)}"
 
 
 class MessageRouter:
@@ -53,7 +121,8 @@ class MessageRouter:
         agent_id: str,
         registry: RegistryInterface,
         improver: Optional[Callable[[str], str]] = None,
-        claude_handler: Optional[Callable[[str], str]] = None
+        claude_handler: Optional[Callable[[str], str]] = None,
+        mcp_registry: Optional[MCPRegistry] = None
     ):
         """
         Initialize message router.
@@ -63,6 +132,7 @@ class MessageRouter:
             registry: Registry instance for agent lookup
             improver: Optional function to transform messages before sending
             claude_handler: Optional function to query Claude API
+            mcp_registry: Optional MCP registry for MCP server lookup
 
         Raises:
             ValueError: If agent_id is empty or registry is None
@@ -76,6 +146,13 @@ class MessageRouter:
         self.registry = registry
         self.improver = improver
         self.claude_handler = claude_handler
+        
+        # Initialize MCP registry
+        self.mcp_registry = mcp_registry or (create_mcp_registry() if MCP_AVAILABLE else None)
+        if self.mcp_registry:
+            print(f"✅ MCP support enabled for {agent_id}")
+        else:
+            print(f"⚠️  MCP support disabled for {agent_id} (registry not available)")
 
     def route(
         self,
@@ -88,6 +165,7 @@ class MessageRouter:
 
         Determines message type and delegates to the correct handler:
         - @agent_id → _handle_agent_message (send to another agent)
+        - #registry:server → _handle_mcp_message (query MCP server)
         - /command → _handle_command (execute command)
         - plain text → _handle_default (query Claude or echo)
 
@@ -102,6 +180,8 @@ class MessageRouter:
         Example:
             >>> router.route("@agent_b Hello!", "conv_001")
             '[agent_a] Message sent to agent_b'
+            >>> router.route("#nanda:payments-server get invoice 123", "conv_001")
+            '[MCP] Invoice details: ...'
             >>> router.route("/help", "conv_001")
             '[agent_a] Available commands: ...'
             >>> router.route("What is 2+2?", "conv_001")
@@ -111,6 +191,8 @@ class MessageRouter:
 
         if message.startswith('@'):
             return self._handle_agent_message(message, conversation_id, depth)
+        elif message.startswith('#'):
+            return self._handle_mcp_message(message, conversation_id)
         elif message.startswith('/'):
             return self._handle_command(message, conversation_id)
         else:
@@ -209,6 +291,83 @@ class MessageRouter:
 
         except Exception as e:
             return f"[{self.agent_id}] Error sending to {target_agent}: {str(e)}"
+
+    def _handle_mcp_message(self, message: str, conversation_id: str) -> str:
+        """
+        Handle #registry:server messages (query MCP server).
+
+        Parses the registry provider and server name, looks up the server
+        in the MCP registry, and executes the query via MCP client.
+
+        Args:
+            message: Message in format "#registry:server query text"
+            conversation_id: Unique conversation identifier
+
+        Returns:
+            MCP server response or error message
+
+        Examples:
+            #nanda:payments get invoice 123
+            #smithery:weather what's the weather in NYC?
+        """
+        if not MCP_AVAILABLE:
+            return f"[{self.agent_id}] MCP support not available (missing dependencies)"
+            
+        if not self.mcp_registry:
+            return f"[{self.agent_id}] MCP registry not configured"
+
+        # Parse the command format: #registry:server query
+        parts = message.split(' ', 1)
+        if len(parts) < 2:
+            return f"[{self.agent_id}] Invalid MCP format. Use '#registry:server query'"
+
+        # Parse registry and server from first part
+        mcp_part = parts[0][1:]  # Remove #
+        query = parts[1]
+
+        if ':' not in mcp_part:
+            return f"[{self.agent_id}] Invalid MCP format. Use '#registry:server query'"
+
+        registry_provider, server_name = mcp_part.split(':', 1)
+
+        try:
+            print(f"🔍 Looking up MCP server: {server_name} in {registry_provider}")
+            
+            # Look up server in MCP registry
+            server_config = self.mcp_registry.lookup_server(registry_provider, server_name)
+            
+            if not server_config:
+                # Try lookup by simple name as fallback
+                server_config = self.mcp_registry.lookup_server_by_name(server_name)
+                
+            if not server_config:
+                return f"[{self.agent_id}] MCP server '{server_name}' not found in registry '{registry_provider}'"
+
+            # Extract server details
+            endpoint = server_config.get("endpoint")
+            config = server_config.get("config", {})
+            actual_provider = server_config.get("registry_provider", registry_provider)
+
+            if not endpoint:
+                return f"[{self.agent_id}] Invalid MCP server configuration (missing endpoint)"
+
+            print(f"✅ Found MCP server: {endpoint}")
+
+            # Form complete MCP server URL
+            mcp_server_url = form_mcp_server_url(endpoint, config, actual_provider)
+            
+            if not mcp_server_url:
+                return f"[{self.agent_id}] Could not form MCP server URL (check API keys)"
+
+            print(f"🚀 Querying MCP server: {query}")
+
+            # Run MCP query asynchronously
+            result = asyncio.run(run_mcp_query(query, mcp_server_url))
+            
+            return f"[MCP:{server_name}] {result}"
+
+        except Exception as e:
+            return f"[{self.agent_id}] Error querying MCP server '{server_name}': {str(e)}"
 
     def _handle_command(self, message: str, conversation_id: str) -> str:
         """

@@ -92,9 +92,18 @@ deploy_to_instance() {
 #!/bin/bash
 set -e
 
+echo "🔧 Starting deployment for $agent_id on $instance_ip"
+
 # Update system
+echo "📦 Updating system packages..."
 sudo apt update -y
 sudo apt install -y python3 python3-pip python3-venv git curl
+
+# Test network connectivity first
+echo "🌐 Testing network connectivity..."
+if ! curl -s --connect-timeout 10 https://google.com > /dev/null; then
+    echo "⚠️  Warning: Network connectivity issues detected"
+fi
 
 # Clone repo
 if [ -d "$REPO_NAME" ]; then
@@ -113,6 +122,10 @@ fi
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
+
+# Run network diagnostics
+echo "🩺 Running network diagnostics..."
+python3 network_diagnostic.py || echo "⚠️  Diagnostics completed with warnings"
 
 # Create .env file template (user needs to edit)
 if [ ! -f ".env" ]; then

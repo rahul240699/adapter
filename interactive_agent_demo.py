@@ -47,21 +47,35 @@ def create_claude_improver():
 
 def main():
     parser = argparse.ArgumentParser(description="Interactive @agent routing demo")
-    parser.add_argument("agent_id", choices=["agent_a", "agent_b"], help="Agent to run")
+    parser.add_argument("agent_id", help="Agent ID to run (e.g., agent_a, agent_b, agent_c, etc.)")
     parser.add_argument("--server-only", action="store_true", help="Run as server only (no chat interface)")
     
     args = parser.parse_args()
     
-    port_map = {
+    # Default port mapping (can be overridden by environment)
+    default_port_map = {
         "agent_a": 6001,
-        "agent_b": 6002
+        "agent_b": 6002,
+        "agent_c": 6003,
+        "agent_d": 6004,
+        "agent_e": 6005,
     }
+    
+    # Get default port or auto-assign based on agent_id
+    def get_default_port(agent_id):
+        if agent_id in default_port_map:
+            return default_port_map[agent_id]
+        # Auto-assign port based on agent name hash for consistency
+        import hashlib
+        hash_obj = hashlib.md5(agent_id.encode())
+        # Generate port in range 6001-6999
+        return 6001 + (int(hash_obj.hexdigest(), 16) % 999)
     
     print(f"🚀 Starting interactive {args.agent_id} with @agent routing")
     print("=" * 60)
     
     # Get port from environment or use default
-    port = int(os.getenv('PORT', port_map[args.agent_id]))
+    port = int(os.getenv('PORT', get_default_port(args.agent_id)))
     
     # Create agent with Claude-based message improvement
     # SimpleNANDA will handle network configuration through environment variables

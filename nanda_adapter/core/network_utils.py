@@ -85,6 +85,11 @@ def _get_ec2_metadata(path: str) -> Optional[str]:
             )
             if response.status_code == 200:
                 return response.text.strip()
+        except requests.exceptions.ConnectionError as e:
+            if "Name or service not known" in str(e):
+                print(f"🌐 DNS resolution failed for EC2 metadata service: {e}")
+                print("   This is normal if not running on EC2 or if DNS is misconfigured")
+            pass
         except Exception:
             pass
     
@@ -96,6 +101,11 @@ def _get_ec2_metadata(path: str) -> Optional[str]:
         )
         if response.status_code == 200:
             return response.text.strip()
+    except requests.exceptions.ConnectionError as e:
+        if "Name or service not known" in str(e):
+            print(f"🌐 DNS resolution failed for EC2 metadata service: {e}")
+            print("   This is normal if not running on EC2 or if DNS is misconfigured")
+        pass
     except Exception:
         pass
     

@@ -37,6 +37,7 @@ from .core.protocol import parse_a2a_message, is_a2a_message
 from .core.logger import ConversationLogger
 from .core.network_utils import get_public_url, print_network_debug_info
 from .core.env_loader import load_env_vars
+from .core.payment_middleware import PaymentStatus
 # A2A messaging imports removed - using standard protocol
 from .core.claude_integration import call_claude
 
@@ -383,6 +384,48 @@ class SimpleNANDA:
                 
                 # Log incoming
                 self.parent.logger.log(conversation_id, "incoming", user_text)
+
+                # Check payment requirement FIRST - if this agent requires payment and no receipt provided
+                if self.parent.service_charge > 0:
+                    # Check if message contains a receipt
+                    import re
+                    receipt_match = re.search(r'#receipt:([a-zA-Z0-9\-]+)', user_text)
+                    
+                    if not receipt_match:
+                        # No receipt provided - return 402 payment required
+                        response_text = f"402-PAYMENT-REQUIRED: This agent requires {self.parent.service_charge} NP per request. Please provide payment receipt."
+                        self.parent.logger.log(conversation_id, "outgoing", response_text)
+                        return Message(
+                            role=MessageRole.AGENT,
+                            content=TextContent(text=response_text),
+                            parent_message_id=msg.message_id,
+                            conversation_id=conversation_id
+                        )
+                    else:
+                        # Receipt provided - validate it using payment middleware
+                        receipt_id = receipt_match.group(1)
+                        if self.parent.router.payment_middleware:
+                            import asyncio
+                            validation_result = asyncio.run(
+                                self.parent.router.payment_middleware.validate_receipt(
+                                    receipt_id, 
+                                    anthropic_client=self.parent.anthropic
+                                )
+                            )
+                            
+                            if validation_result.status != PaymentStatus.PAID:
+                                response_text = f"402-PAYMENT-REQUIRED: Invalid receipt {receipt_id}. Please provide valid payment receipt."
+                                self.parent.logger.log(conversation_id, "outgoing", response_text)
+                                return Message(
+                                    role=MessageRole.AGENT,
+                                    content=TextContent(text=response_text),
+                                    parent_message_id=msg.message_id,
+                                    conversation_id=conversation_id
+                                )
+                            else:
+                                print(f"💰 Payment validated for {self.parent.agent_id}: {validation_result.message}")
+                                # Remove receipt from message text for processing
+                                user_text = re.sub(r'\s*#receipt:[a-zA-Z0-9\-]+', '', user_text).strip()
 
                 # Check if standard A2A external message
                 if is_a2a_message(user_text):

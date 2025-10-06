@@ -102,7 +102,8 @@ class PaymentMiddleware:
         source_agent_id: str, 
         target_agent_id: str, 
         amount: int,
-        mcp_server_url: str = "https://p01--nanda-points-mcp--qvf8hqwjtv29.code.run/mcp"
+        mcp_server_url: str = "https://p01--nanda-points-mcp--qvf8hqwjtv29.code.run/mcp",
+        anthropic_client=None
     ) -> PaymentResult:
         """
         Process payment from source to target agent.
@@ -123,7 +124,7 @@ class PaymentMiddleware:
             )
         
         try:
-            async with MCPClient() as client:
+            async with MCPClient(anthropic_client) as client:
                 # Initiate transaction via MCP
                 query = f"initiate a transaction of {amount} NP from {source_agent_id} to {target_agent_id}"
                 result = await client.process_query(query, mcp_server_url)
@@ -166,7 +167,8 @@ class PaymentMiddleware:
     async def validate_receipt(
         self, 
         receipt_id: str,
-        mcp_server_url: str = "https://p01--nanda-points-mcp--qvf8hqwjtv29.code.run/mcp"
+        mcp_server_url: str = "https://p01--nanda-points-mcp--qvf8hqwjtv29.code.run/mcp",
+        anthropic_client=None
     ) -> PaymentResult:
         """
         Validate a payment receipt.
@@ -185,7 +187,7 @@ class PaymentMiddleware:
             )
         
         try:
-            async with MCPClient() as client:
+            async with MCPClient(anthropic_client) as client:
                 # Get receipt via MCP
                 query = f"get receipt for {receipt_id}"
                 result = await client.process_query(query, mcp_server_url)

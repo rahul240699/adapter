@@ -65,24 +65,34 @@ class MCPClient:
     with Claude for intelligent tool usage.
     """
     
-    def __init__(self):
-        """Initialize MCP client."""
+    def __init__(self, anthropic_client=None):
+        """
+        Initialize MCP client.
+        
+        Args:
+            anthropic_client: Optional existing Anthropic client to reuse
+        """
         if not MCP_AVAILABLE:
             raise ImportError("MCP library not available. Install with: pip install mcp")
             
-        if not ANTHROPIC_AVAILABLE:
-            raise ImportError("Anthropic library not available. Install with: pip install anthropic")
-        
         self.session = None
         self.exit_stack = AsyncExitStack()
         
-        # Initialize Anthropic client
-        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not anthropic_api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable required")
+        # Use provided client or create new one
+        if anthropic_client:
+            self.anthropic = anthropic_client
+            logger.info("✅ MCP client initialized with provided Anthropic client")
+        else:
+            if not ANTHROPIC_AVAILABLE:
+                raise ImportError("Anthropic library not available. Install with: pip install anthropic")
             
-        self.anthropic = Anthropic(api_key=anthropic_api_key)
-        logger.info("✅ MCP client initialized")
+            # Initialize Anthropic client from environment
+            anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not anthropic_api_key:
+                raise ValueError("ANTHROPIC_API_KEY environment variable required")
+                
+            self.anthropic = Anthropic(api_key=anthropic_api_key)
+            logger.info("✅ MCP client initialized with new Anthropic client")
     
     async def connect_to_mcp_and_get_tools(self, mcp_server_url: str, transport_type: str = "http") -> Optional[List]:
         """

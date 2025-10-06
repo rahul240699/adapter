@@ -131,7 +131,8 @@ class MessageRouter:
         registry: RegistryInterface,
         improver: Optional[Callable[[str], str]] = None,
         claude_handler: Optional[Callable[[str], str]] = None,
-        mcp_registry = None
+        mcp_registry = None,
+        anthropic_client = None
     ):
         """
         Initialize message router.
@@ -142,6 +143,7 @@ class MessageRouter:
             improver: Optional function to transform messages before sending
             claude_handler: Optional function to query Claude API
             mcp_registry: Optional MCP registry for MCP server lookup
+            anthropic_client: Optional Anthropic client for MCP operations
 
         Raises:
             ValueError: If agent_id is empty or registry is None
@@ -155,6 +157,7 @@ class MessageRouter:
         self.registry = registry
         self.improver = improver
         self.claude_handler = claude_handler
+        self.anthropic_client = anthropic_client
         
         # Initialize MCP registry
         self.mcp_registry = mcp_registry or (create_mcp_registry() if MCP_AVAILABLE else None)
@@ -269,7 +272,7 @@ class MessageRouter:
             if receipt_id:
                 # Validate receipt before processing
                 import asyncio
-                validation_result = asyncio.run(self.payment_middleware.validate_receipt(receipt_id))
+                validation_result = asyncio.run(self.payment_middleware.validate_receipt(receipt_id, anthropic_client=self.anthropic_client))
                 
                 if validation_result.status != PaymentStatus.PAID:
                     return f"[{self.agent_id}] Invalid receipt: {validation_result.message}"
@@ -333,7 +336,8 @@ class MessageRouter:
                             self.payment_middleware.process_payment(
                                 self.agent_id, 
                                 target_agent, 
-                                amount
+                                amount,
+                                anthropic_client=self.anthropic_client
                             )
                         )
                         

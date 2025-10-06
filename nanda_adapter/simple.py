@@ -178,7 +178,8 @@ class SimpleNANDA:
             agent_id=agent_id,
             registry=self.registry,
             improver=improvement_logic,
-            claude_handler=self._call_claude if require_anthropic else None
+            claude_handler=self._call_claude if require_anthropic else None,
+            anthropic_client=self.anthropic if require_anthropic else None
         )
 
         # A2A message handler removed - using standard protocol

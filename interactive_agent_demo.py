@@ -78,6 +78,9 @@ def main():
     # Get port from environment or use default
     port = int(os.getenv('PORT', get_default_port(args.agent_id)))
     
+    # Set PORT environment variable so SimpleNANDA uses the correct port
+    os.environ['PORT'] = str(port)
+    
     # Determine service charge based on mode and agent
     service_charge = 0  # Default free
     if args.server_only:

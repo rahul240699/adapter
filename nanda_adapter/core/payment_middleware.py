@@ -125,20 +125,22 @@ class PaymentMiddleware:
         
         try:
             async with MCPClient(anthropic_client) as client:
-                # Initiate transaction via MCP
-                query = f"initiate a transaction of {amount} NP from {source_agent_id} to {target_agent_id}"
+                # Initiate transaction via MCP with task parameter
+                task_description = f"Agent-to-agent service request from {source_agent_id} to {target_agent_id}"
+                query = f"initiate a transaction of {amount} NP from {source_agent_id} to {target_agent_id} for task: {task_description}"
                 result = await client.process_query(query, mcp_server_url)
                 
-                # Parse result to extract receipt/transaction ID
-                # This is a simple parser - you might want to make it more robust
-                if "receipt" in result.lower() and "id" in result.lower():
-                    # Extract receipt ID from result
-                    import re
-                    receipt_match = re.search(r'receipt[_\s]?id[:\s]+([a-zA-Z0-9\-]+)', result, re.IGNORECASE)
-                    transaction_match = re.search(r'transaction[_\s]?id[:\s]+([a-zA-Z0-9\-]+)', result, re.IGNORECASE)
+                # Parse result to extract transaction ID and check for success
+                import re
+                
+                # Check for successful transaction
+                if "completed successfully" in result.lower() or "transaction was completed" in result.lower():
+                    # Extract transaction ID
+                    transaction_match = re.search(r'transaction\s+ID[:\s]+([a-fA-F0-9\-]+)', result, re.IGNORECASE)
                     
-                    receipt_id = receipt_match.group(1) if receipt_match else None
                     transaction_id = transaction_match.group(1) if transaction_match else None
+                    # Use transaction ID as receipt ID for compatibility
+                    receipt_id = transaction_id
                     
                     return PaymentResult(
                         status=PaymentStatus.PAID,

@@ -385,13 +385,25 @@ class SimpleNANDA:
                 # Log incoming
                 self.parent.logger.log(conversation_id, "incoming", user_text)
 
-                # Check payment requirement FIRST - if this agent requires payment and no receipt provided
-                if self.parent.service_charge > 0:
-                    # Check if message contains a receipt
+                # Check if standard A2A external message first
+                receipt_id = None
+                if is_a2a_message(user_text):
+                    print(f"[SIMPLE_NANDA] Detected standard A2A message format")
+                    a2a_msg = parse_a2a_message(user_text)
+                    if a2a_msg:
+                        receipt_id = a2a_msg.receipt_id
+                        user_text = a2a_msg.message  # Use the actual message content
+                else:
+                    # For non-A2A messages, check for receipt in text (fallback)
                     import re
-                    receipt_match = re.search(r'#receipt:([a-zA-Z0-9\-]+)', user_text)
-                    
-                    if not receipt_match:
+                    receipt_match = re.search(r'#receipt:([a-zA-Z0-9\-]+)', user_text) 
+                    if receipt_match:
+                        receipt_id = receipt_match.group(1)
+                        user_text = re.sub(r'\s*#receipt:[a-zA-Z0-9\-]+', '', user_text).strip()
+
+                # Check payment requirement - if this agent requires payment and no receipt provided
+                if self.parent.service_charge > 0:
+                    if not receipt_id:
                         # No receipt provided - return 402 payment required
                         response_text = f"402-PAYMENT-REQUIRED: This agent requires {self.parent.service_charge} NP per request. Please provide payment receipt."
                         self.parent.logger.log(conversation_id, "outgoing", response_text)
@@ -403,7 +415,6 @@ class SimpleNANDA:
                         )
                     else:
                         # Receipt provided - validate it using payment middleware
-                        receipt_id = receipt_match.group(1)
                         if self.parent.router.payment_middleware:
                             import asyncio
                             validation_result = asyncio.run(
@@ -424,10 +435,8 @@ class SimpleNANDA:
                                 )
                             else:
                                 print(f"💰 Payment validated for {self.parent.agent_id}: {validation_result.message}")
-                                # Remove receipt from message text for processing
-                                user_text = re.sub(r'\s*#receipt:[a-zA-Z0-9\-]+', '', user_text).strip()
 
-                # Check if standard A2A external message
+                # Process the message (payment validated or not required)
                 if is_a2a_message(user_text):
                     print(f"[SIMPLE_NANDA] Detected standard A2A message format")
                     a2a_msg = parse_a2a_message(user_text)
@@ -472,7 +481,10 @@ class SimpleNANDA:
                     print(f"[SIMPLE_NANDA] Processing message through router")
                     if user_text.strip().startswith('@'):
                         print(f"[SIMPLE_NANDA] Detected @agent routing request")
+                    print(f"[SIMPLE_NANDA] Router object: {type(self.parent.router)}")
+                    print(f"[SIMPLE_NANDA] About to call router.route with: '{user_text[:50]}...'")
                     response_text = self.parent.router.route(user_text, conversation_id)
+                    print(f"[SIMPLE_NANDA] Router returned: '{response_text[:100]}...'")
 
                 print(f"[SIMPLE_NANDA] {self.parent.agent_id} responding with: '{response_text[:100]}...'")
                 

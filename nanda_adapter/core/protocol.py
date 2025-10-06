@@ -41,6 +41,7 @@ class A2AMessage:
         depth: Current message depth (0 = initial request, 1 = response, etc.)
         max_depth: Maximum allowed depth to prevent infinite loops
         message_type: Type of message - "query" (request) or "response" (reply)
+        receipt_id: Optional payment receipt ID for paid requests
 
     The depth tracking mechanism prevents infinite loops:
         - Initial messages have depth=0
@@ -56,6 +57,7 @@ class A2AMessage:
     depth: int = 0
     max_depth: int = 1
     message_type: str = "query"  # "query" or "response"
+    receipt_id: Optional[str] = None
 
     def __post_init__(self) -> None:
         """Validate message fields after initialization."""
@@ -99,13 +101,14 @@ def format_a2a_message(msg: A2AMessage) -> str:
         >>> "__EXTERNAL_MESSAGE__" in formatted
         True
     """
+    receipt_field = f"__RECEIPT_ID__{msg.receipt_id}\n" if msg.receipt_id else ""
     return f"""__EXTERNAL_MESSAGE__
 __FROM_AGENT__{msg.from_agent}
 __TO_AGENT__{msg.to_agent}
 __MESSAGE_TYPE__{msg.message_type}
 __DEPTH__{msg.depth}
 __MAX_DEPTH__{msg.max_depth}
-__MESSAGE_START__
+{receipt_field}__MESSAGE_START__
 {msg.message}
 __MESSAGE_END__"""
 
@@ -149,6 +152,7 @@ def parse_a2a_message(raw: str) -> Optional[A2AMessage]:
     message_type = "query"  # Default
     depth = 0  # Default
     max_depth = 1  # Default
+    receipt_id = None  # Default
     message_lines = []
     in_message = False
 
@@ -169,6 +173,8 @@ def parse_a2a_message(raw: str) -> Optional[A2AMessage]:
                 max_depth = int(line[len("__MAX_DEPTH__"):])
             except ValueError:
                 max_depth = 1  # Fallback to default
+        elif line.startswith("__RECEIPT_ID__"):
+            receipt_id = line[len("__RECEIPT_ID__"):]
         elif line == "__MESSAGE_START__":
             in_message = True
         elif line == "__MESSAGE_END__":
@@ -192,7 +198,8 @@ def parse_a2a_message(raw: str) -> Optional[A2AMessage]:
             conversation_id="",  # Will be set by caller from context
             depth=depth,
             max_depth=max_depth,
-            message_type=message_type
+            message_type=message_type,
+            receipt_id=receipt_id
         )
     except ValueError:
         # Invalid field values, return None

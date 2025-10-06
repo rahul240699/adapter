@@ -49,6 +49,7 @@ def main():
     parser = argparse.ArgumentParser(description="Interactive @agent routing demo")
     parser.add_argument("agent_id", help="Agent ID to run (e.g., agent_a, agent_b, agent_c, etc.)")
     parser.add_argument("--server-only", action="store_true", help="Run as server only (no chat interface)")
+    parser.add_argument("--service-charge", type=int, default=0, help="Service charge in NP per request (0=free, >0=expert agent)")
     
     args = parser.parse_args()
     
@@ -90,7 +91,7 @@ def main():
         agent_id=args.agent_id,
         improvement_logic=create_claude_improver(),
         require_anthropic=True,
-        service_charge=service_charge
+        service_charge=args.service_charge
     )
     
     print(f"\n✅ {args.agent_id} ready!")

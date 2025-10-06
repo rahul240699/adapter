@@ -8,7 +8,7 @@ SSH_USER="ubuntu"                    # SSH username (ubuntu for Ubuntu instances
 
 # Repository Configuration  
 REPO_URL="https://github.com/rahul240699/adapter.git"  # Your repository URL
-REPO_BRANCH="feature/remote-deployment"                # Branch to deploy
+REPO_BRANCH="feature/integrating-payments"                # Branch to deploy
 
 # Agent Instances Configuration
 # Format: "IP:AGENT_ID:PORT:MODE"

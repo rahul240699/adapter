@@ -184,8 +184,9 @@ class SimpleNANDA:
 
         # A2A message handler removed - using standard protocol
 
-        # Register with registry using public URL for EC2 compatibility (with service charge)
-        self.registry.register(agent_id, self.public_url, service_charge)
+        # Register with registry using public URL for EC2 compatibility (with service charge and agent name)
+        # agent_name defaults to agent_id (e.g., 'agent_a', 'agent_b', etc.)
+        self.registry.register(agent_id, self.public_url, service_charge, agent_name=agent_id)
 
         print(f"✓ Agent '{agent_id}' initialized")
         print(f"✓ Public URL: {self.public_url}")

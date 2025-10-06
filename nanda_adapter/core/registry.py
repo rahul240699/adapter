@@ -24,7 +24,7 @@ class RegistryInterface(ABC):
     """Abstract base class for registry implementations"""
     
     @abstractmethod
-    def register(self, agent_id: str, agent_url: str) -> bool:
+    def register(self, agent_id: str, agent_url: str, service_charge: int = 0, agent_name: Optional[str] = None) -> bool:
         """Register or update an agent"""
         pass
     
@@ -78,7 +78,7 @@ class LocalRegistry(RegistryInterface):
         with open(self.registry_file, 'w') as f:
             json.dump(self.agents, f, indent=2, default=str)
 
-    def register(self, agent_id: str, agent_url: str, service_charge: int = 0) -> bool:
+    def register(self, agent_id: str, agent_url: str, service_charge: int = 0, agent_name: Optional[str] = None) -> bool:
         """
         Register or update an agent.
 
@@ -86,24 +86,29 @@ class LocalRegistry(RegistryInterface):
             agent_id: Unique agent identifier
             agent_url: Full URL to agent (e.g., http://localhost:6000 or http://192.168.1.100:6002)
             service_charge: Points required per request (0 = free, >0 = expert agent)
+            agent_name: Human-readable name for the agent (defaults to agent_id)
 
         Returns:
             True if successful
         """
         now = datetime.now(timezone.utc).isoformat()
+        # Default agent_name to agent_id if not provided
+        agent_name = agent_name or agent_id
 
         if agent_id in self.agents:
             # Update existing agent
             self.agents[agent_id]["agent_url"] = agent_url
             self.agents[agent_id]["last_seen"] = now
             self.agents[agent_id]["service_charge"] = service_charge
+            self.agents[agent_id]["agent_name"] = agent_name
         else:
             # Register new agent
             self.agents[agent_id] = {
                 "agent_url": agent_url,
                 "registered_at": now,
                 "last_seen": now,
-                "service_charge": service_charge
+                "service_charge": service_charge,
+                "agent_name": agent_name
             }
 
         self._save()
@@ -219,7 +224,7 @@ class MongoRegistry(RegistryInterface):
         # Create index on agent_id for faster lookups
         self.collection.create_index("agent_id", unique=True)
 
-    def register(self, agent_id: str, agent_url: str, service_charge: int = 0) -> bool:
+    def register(self, agent_id: str, agent_url: str, service_charge: int = 0, agent_name: Optional[str] = None) -> bool:
         """
         Register or update an agent in MongoDB.
 
@@ -227,6 +232,7 @@ class MongoRegistry(RegistryInterface):
             agent_id: Unique agent identifier
             agent_url: Full URL to agent
             service_charge: Points required per request (0 = free, >0 = expert agent)
+            agent_name: Human-readable name for the agent (defaults to agent_id)
 
         Returns:
             True if successful
@@ -236,6 +242,8 @@ class MongoRegistry(RegistryInterface):
         """
         try:
             now = datetime.now(timezone.utc)
+            # Default agent_name to agent_id if not provided
+            agent_name = agent_name or agent_id
             
             # Use upsert to update existing or create new
             result = self.collection.update_one(
@@ -244,7 +252,8 @@ class MongoRegistry(RegistryInterface):
                     "$set": {
                         "agent_url": agent_url,
                         "last_seen": now,
-                        "service_charge": service_charge
+                        "service_charge": service_charge,
+                        "agent_name": agent_name
                     },
                     "$setOnInsert": {
                         "registered_at": now

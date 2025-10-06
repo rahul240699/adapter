@@ -40,6 +40,13 @@ except ImportError:
     create_mcp_registry = None
     MCPRegistry = None
 
+# Payment middleware imports
+try:
+    from .payment_middleware import create_payment_middleware, PaymentStatus
+    PAYMENT_AVAILABLE = True
+except ImportError:
+    PAYMENT_AVAILABLE = False
+
 
 def form_mcp_server_url(endpoint: str, config: dict, registry_provider: str) -> str:
     """
@@ -155,6 +162,13 @@ class MessageRouter:
             print(f"✅ MCP support enabled for {agent_id}")
         else:
             print(f"⚠️  MCP support disabled for {agent_id} (registry not available)")
+        
+        # Initialize payment middleware
+        self.payment_middleware = create_payment_middleware(registry, self.mcp_registry) if PAYMENT_AVAILABLE else None
+        if self.payment_middleware:
+            print(f"💰 Payment middleware enabled for {agent_id}")
+        else:
+            print(f"⚠️  Payment middleware disabled for {agent_id}")
 
     def route(
         self,
@@ -238,20 +252,39 @@ class MessageRouter:
         target_agent = parts[0][1:]  # Remove @
         message_text = parts[1]
 
-        # Apply improvement if configured
+        # Apply message improvement if available
         if self.improver:
-            try:
-                message_text = self.improver(message_text)
-            except Exception as e:
-                # Don't fail the whole message if improvement fails
-                print(f"Warning: Message improvement failed: {e}")
+            message_text = self.improver(message_text)
 
-        # Lookup target agent
+        # Look up target agent
         target_url = self.registry.lookup(target_agent)
         if not target_url:
             return f"[{self.agent_id}] Agent '{target_agent}' not found in registry"
 
-        # Create A2A message
+        # Payment processing
+        if self.payment_middleware:
+            # Check if message contains receipt (for paid requests)
+            receipt_id = self.payment_middleware.extract_receipt_from_message(message_text)
+            
+            if receipt_id:
+                # Validate receipt before processing
+                import asyncio
+                validation_result = asyncio.run(self.payment_middleware.validate_receipt(receipt_id))
+                
+                if validation_result.status != PaymentStatus.PAID:
+                    return f"[{self.agent_id}] Invalid receipt: {validation_result.message}"
+                
+                print(f"💰 Payment validated: {validation_result.message}")
+                # Continue with message processing...
+            else:
+                # Check if target requires payment
+                payment_check = self.payment_middleware.check_payment_requirement(target_agent)
+                
+                if payment_check.status == PaymentStatus.REQUIRED:
+                    # Return 402 Payment Required
+                    return self.payment_middleware.format_payment_required_response(payment_check, target_agent)
+
+        # Create A2A message with depth tracking
         a2a_msg = A2AMessage(
             from_agent=self.agent_id,
             to_agent=target_agent,
@@ -284,10 +317,67 @@ class MessageRouter:
 
             # Return the actual response from the target agent
             if response and hasattr(response, 'content') and response.content:
-                if hasattr(response.content, 'text'):
-                    return f"[{target_agent} → {self.agent_id}] {response.content.text}"
+                response_text = response.content.text if hasattr(response.content, 'text') else str(response.content)
+                
+                # Check if response is a payment request (402)
+                if self.payment_middleware and "402-PAYMENT-REQUIRED" in response_text:
+                    # Extract amount from payment request
+                    import re
+                    amount_match = re.search(r'(\d+)\s*NP', response_text)
+                    if amount_match:
+                        amount = int(amount_match.group(1))
+                        print(f"💰 Payment required: {amount} NP for {target_agent}")
+                        
+                        # Automatically process payment
+                        payment_result = asyncio.run(
+                            self.payment_middleware.process_payment(
+                                self.agent_id, 
+                                target_agent, 
+                                amount
+                            )
+                        )
+                        
+                        if payment_result.status == PaymentStatus.PAID:
+                            # Payment successful - retry request with receipt
+                            print(f"✅ Payment processed: {payment_result.receipt_id}")
+                            
+                            # Add receipt to original message and retry
+                            message_with_receipt = f"{message_text} #receipt:{payment_result.receipt_id}"
+                            
+                            # Create new A2A message with receipt
+                            a2a_msg_retry = A2AMessage(
+                                from_agent=self.agent_id,
+                                to_agent=target_agent,
+                                message=message_with_receipt,
+                                conversation_id=conversation_id,
+                                depth=depth,
+                                max_depth=1,
+                                message_type="query"
+                            )
+                            
+                            formatted_retry = format_a2a_message(a2a_msg_retry)
+                            
+                            # Retry the request
+                            retry_response = client.send_message(
+                                Message(
+                                    role=MessageRole.USER,
+                                    content=TextContent(text=formatted_retry),
+                                    conversation_id=conversation_id
+                                )
+                            )
+                            
+                            if retry_response and hasattr(retry_response, 'content') and retry_response.content:
+                                retry_text = retry_response.content.text if hasattr(retry_response.content, 'text') else str(retry_response.content)
+                                return f"[{target_agent} → {self.agent_id}] {retry_text}"
+                            else:
+                                return f"[{self.agent_id}] Payment processed, message sent to {target_agent}"
+                        else:
+                            # Payment failed
+                            return f"[{self.agent_id}] Payment failed: {payment_result.message}"
+                    else:
+                        return f"[{target_agent} → {self.agent_id}] {response_text}"
                 else:
-                    return f"[{target_agent} → {self.agent_id}] {str(response.content)}"
+                    return f"[{target_agent} → {self.agent_id}] {response_text}"
             else:
                 return f"[{self.agent_id}] Message sent to {target_agent} (no response)"
 

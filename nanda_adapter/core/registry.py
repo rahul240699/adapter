@@ -78,13 +78,14 @@ class LocalRegistry(RegistryInterface):
         with open(self.registry_file, 'w') as f:
             json.dump(self.agents, f, indent=2, default=str)
 
-    def register(self, agent_id: str, agent_url: str) -> bool:
+    def register(self, agent_id: str, agent_url: str, service_charge: int = 0) -> bool:
         """
         Register or update an agent.
 
         Args:
             agent_id: Unique agent identifier
             agent_url: Full URL to agent (e.g., http://localhost:6000 or http://192.168.1.100:6002)
+            service_charge: Points required per request (0 = free, >0 = expert agent)
 
         Returns:
             True if successful
@@ -95,12 +96,14 @@ class LocalRegistry(RegistryInterface):
             # Update existing agent
             self.agents[agent_id]["agent_url"] = agent_url
             self.agents[agent_id]["last_seen"] = now
+            self.agents[agent_id]["service_charge"] = service_charge
         else:
             # Register new agent
             self.agents[agent_id] = {
                 "agent_url": agent_url,
                 "registered_at": now,
-                "last_seen": now
+                "last_seen": now,
+                "service_charge": service_charge
             }
 
         self._save()
@@ -118,6 +121,18 @@ class LocalRegistry(RegistryInterface):
         """
         agent = self.agents.get(agent_id)
         return agent["agent_url"] if agent else None
+
+    def get_agent_info(self, agent_id: str) -> Optional[Dict]:
+        """
+        Get complete agent information including service charge.
+
+        Args:
+            agent_id: Agent identifier to look up
+
+        Returns:
+            Complete agent record or None if not found
+        """
+        return self.agents.get(agent_id)
 
     def list(self) -> List[Dict]:
         """
@@ -204,13 +219,14 @@ class MongoRegistry(RegistryInterface):
         # Create index on agent_id for faster lookups
         self.collection.create_index("agent_id", unique=True)
 
-    def register(self, agent_id: str, agent_url: str) -> bool:
+    def register(self, agent_id: str, agent_url: str, service_charge: int = 0) -> bool:
         """
         Register or update an agent in MongoDB.
 
         Args:
             agent_id: Unique agent identifier
             agent_url: Full URL to agent
+            service_charge: Points required per request (0 = free, >0 = expert agent)
 
         Returns:
             True if successful
@@ -227,7 +243,8 @@ class MongoRegistry(RegistryInterface):
                 {
                     "$set": {
                         "agent_url": agent_url,
-                        "last_seen": now
+                        "last_seen": now,
+                        "service_charge": service_charge
                     },
                     "$setOnInsert": {
                         "registered_at": now
@@ -270,6 +287,30 @@ class MongoRegistry(RegistryInterface):
             
         except OperationFailure as e:
             print(f"✗ Failed to lookup agent '{agent_id}': {e}")
+            return None
+
+    def get_agent_info(self, agent_id: str) -> Optional[Dict]:
+        """
+        Get complete agent information including service charge.
+
+        Args:
+            agent_id: Agent identifier to look up
+
+        Returns:
+            Complete agent record or None if not found
+        """
+        try:
+            agent = self.collection.find_one({"agent_id": agent_id}, {"_id": 0})
+            if agent:
+                # Update last_seen timestamp
+                self.collection.update_one(
+                    {"agent_id": agent_id},
+                    {"$set": {"last_seen": datetime.now(timezone.utc)}}
+                )
+            return agent
+            
+        except OperationFailure as e:
+            print(f"✗ Failed to get agent info '{agent_id}': {e}")
             return None
 
     def list(self) -> List[Dict]:

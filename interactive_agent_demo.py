@@ -77,12 +77,20 @@ def main():
     # Get port from environment or use default
     port = int(os.getenv('PORT', get_default_port(args.agent_id)))
     
+    # Determine service charge based on mode and agent
+    service_charge = 0  # Default free
+    if args.server_only:
+        # Server-only agents are expert agents requiring payment
+        print(f"💰 Expert mode: This agent will require payment for requests")
+        service_charge = 10  # 10 NP per request for expert agents
+    
     # Create agent with Claude-based message improvement
     # SimpleNANDA will handle network configuration through environment variables
     agent = SimpleNANDA(
         agent_id=args.agent_id,
         improvement_logic=create_claude_improver(),
-        require_anthropic=True
+        require_anthropic=True,
+        service_charge=service_charge
     )
     
     print(f"\n✅ {args.agent_id} ready!")

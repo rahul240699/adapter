@@ -90,7 +90,8 @@ class SimpleNANDA:
         anthropic_api_key: Optional[str] = None,
         require_anthropic: bool = True,
         registry: Optional[RegistryInterface] = None,
-        log_dir: str = "./logs"
+        log_dir: str = "./logs",
+        service_charge: int = 0
     ):
         """
         Initialize SimpleNANDA agent.
@@ -104,6 +105,7 @@ class SimpleNANDA:
             require_anthropic: Whether Claude is required (default: True)
             registry: Custom registry instance (default: auto-detected from .env)
             log_dir: Base directory for conversation logs (default: "./logs")
+            service_charge: Points required per request (0=free, >0=expert agent)
 
         Raises:
             ValueError: If agent_id is empty
@@ -112,8 +114,11 @@ class SimpleNANDA:
             ImportError: If required dependencies are missing
 
         Example:
-            >>> # With Claude (requires ANTHROPIC_API_KEY)
+            >>> # Free agent with Claude
             >>> agent = SimpleNANDA('agent_a', 'localhost:6000')
+            >>>
+            >>> # Expert agent requiring 10 NP per request
+            >>> agent = SimpleNANDA('agent_expert', 'localhost:6001', service_charge=10)
             >>>
             >>> # Without Claude (custom logic only)
             >>> def my_logic(text): return text.upper()
@@ -123,9 +128,6 @@ class SimpleNANDA:
             ...     improvement_logic=my_logic,
             ...     require_anthropic=False
             ... )
-            >>>
-            >>> # On specific host/IP
-            >>> agent = SimpleNANDA('agent_a', '192.168.1.100:6000')
         """
         if not agent_id:
             raise ValueError("agent_id cannot be empty")
@@ -137,6 +139,7 @@ class SimpleNANDA:
 
         self.agent_id = agent_id
         self.improvement_logic = improvement_logic
+        self.service_charge = service_charge
 
         # Load environment configuration for EC2 support
         env_vars = load_env_vars()
@@ -180,12 +183,18 @@ class SimpleNANDA:
 
         # A2A message handler removed - using standard protocol
 
-        # Register with registry using public URL for EC2 compatibility
-        self.registry.register(agent_id, self.public_url)
+        # Register with registry using public URL for EC2 compatibility (with service charge)
+        self.registry.register(agent_id, self.public_url, service_charge)
 
         print(f"✓ Agent '{agent_id}' initialized")
         print(f"✓ Public URL: {self.public_url}")
         print(f"✓ Internal bind: {self.internal_host}:{self.port}")
+        
+        # Show service charge info
+        if service_charge > 0:
+            print(f"💰 Expert agent: {service_charge} NP per request")
+        else:
+            print(f"🆓 Free agent: No charge per request")
         
         # Show registry type and info
         if hasattr(self.registry, 'registry_file'):

@@ -36,3 +36,5 @@ mongodb_registry_examples.py
 ec2_agent_demo.py
 nanda-agent-key.pem
 DEPLOYMENT_GUIDE.md
+X402_ROUTER_INTEGRATION_SUMMARY.py
+COMPLETE_X402_INTEGRATION_SUMMARY.py

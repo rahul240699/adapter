@@ -40,12 +40,12 @@ except ImportError:
     create_mcp_registry = None
     MCPRegistry = None
 
-# Payment middleware imports
+# X402 Payment middleware imports
 try:
-    from .payment_middleware import create_payment_middleware, PaymentStatus
-    PAYMENT_AVAILABLE = True
+    from .x402_compliant_middleware import X402PaymentMiddleware, X402PaymentStatus
+    X402_PAYMENT_AVAILABLE = True
 except ImportError:
-    PAYMENT_AVAILABLE = False
+    X402_PAYMENT_AVAILABLE = False
 
 
 def form_mcp_server_url(endpoint: str, config: dict, registry_provider: str) -> str:
@@ -166,12 +166,14 @@ class MessageRouter:
         else:
             print(f"⚠️  MCP support disabled for {agent_id} (registry not available)")
         
-        # Initialize payment middleware
-        self.payment_middleware = create_payment_middleware(registry, self.mcp_registry) if PAYMENT_AVAILABLE else None
-        if self.payment_middleware:
-            print(f"💰 Payment middleware enabled for {agent_id}")
+        # Initialize X402 payment middleware
+        if X402_PAYMENT_AVAILABLE:
+            mcp_server_url = "https://p01--nanda-points-mcp--qvf8hqwjtv29.code.run/mcp"
+            self.x402_payment_middleware = X402PaymentMiddleware(registry, mcp_server_url)
+            print(f"💰 X402 Payment middleware enabled for {agent_id}")
         else:
-            print(f"⚠️  Payment middleware disabled for {agent_id}")
+            self.x402_payment_middleware = None
+            print(f"⚠️  X402 Payment middleware disabled for {agent_id}")
 
     def route(
         self,
@@ -249,7 +251,7 @@ class MessageRouter:
             - This prevents infinite agent-to-agent loops
         """
         print(f"🔍 [ROUTER] _handle_agent_message called with: {message[:50]}...")
-        print(f"🔍 [ROUTER] depth={depth}, payment_middleware={self.payment_middleware is not None}")
+        print(f"🔍 [ROUTER] depth={depth}, x402_payment_middleware={self.x402_payment_middleware is not None}")
         
         # Check depth limit
         if depth >= 2:  # Allow request-response (depth 0->1), block deeper (max_depth=2)
@@ -273,22 +275,8 @@ class MessageRouter:
         if not target_url:
             return f"[{self.agent_id}] Agent '{target_agent}' not found in registry"
 
-        # Payment processing - only validate existing receipts, don't block requests
-        if self.payment_middleware:
-            # Check if message contains receipt (for paid requests)
-            receipt_id = self.payment_middleware.extract_receipt_from_message(message_text)
-            
-            if receipt_id:
-                # Validate receipt before processing
-                import asyncio
-                validation_result = asyncio.run(self.payment_middleware.validate_receipt(receipt_id, anthropic_client=self.anthropic_client))
-                
-                if validation_result.status != PaymentStatus.PAID:
-                    return f"[{self.agent_id}] Invalid receipt: {validation_result.message}"
-                
-                print(f"💰 Payment validated: {validation_result.message}")
-                # Continue with message processing...
-            # NOTE: Don't block requests here - let agent_b respond with 402 if needed
+        # X402 Payment processing - will handle payment flow automatically
+        # Note: Payment validation happens through x402 message metadata, not text parsing
 
         # Create A2A message with depth tracking
         a2a_msg = A2AMessage(
@@ -327,12 +315,50 @@ class MessageRouter:
             if response and hasattr(response, 'content') and response.content:
                 response_text = response.content.text if hasattr(response.content, 'text') else str(response.content)
                 
-                # Check if response is a payment request (402)
+                # Check if response contains x402 payment metadata (new specification)
+                if hasattr(response, 'metadata') and response.metadata:
+                    custom_fields = getattr(response.metadata, 'custom_fields', {})
+                    payment_status = custom_fields.get('x402.payment.status')
+                    
+                    if payment_status == X402PaymentStatus.PAYMENT_REQUIRED.value and self.x402_payment_middleware:
+                        print(f"🔍 Detected x402 payment-required response from {target_agent}")
+                        
+                        try:
+                            # Process x402 payment using the full payment flow
+                            import asyncio
+                            
+                            print(f"💳 Processing X402 payment flow automatically")
+                            
+                            # Use the complete payment flow processing
+                            final_response = asyncio.run(
+                                self.x402_payment_middleware.process_payment_flow(
+                                    payment_required_msg=response,
+                                    client=client,
+                                    customer_agent_id=self.agent_id,
+                                    original_message=message_text
+                                )
+                            )
+                            
+                            if final_response:
+                                print(f"✅ X402 payment flow completed successfully!")
+                                final_text = final_response.content.text if hasattr(final_response.content, 'text') else str(final_response.content)
+                                return f"[{target_agent} → {self.agent_id}] {final_text}"
+                            else:
+                                print(f"❌ X402 payment flow failed")
+                                return f"[{self.agent_id}] X402 payment flow failed"
+                                
+                        except Exception as e:
+                            print(f"❌ Error during x402 payment processing: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            return f"[{self.agent_id}] X402 payment processing error: {str(e)}"
+                
+                # Check if response is a legacy payment request (402)
                 if "402-PAYMENT-REQUIRED" in response_text:
                     print(f"🔍 Detected 402 response: {response_text[:100]}...")
-                    print(f"🔍 Payment middleware available: {self.payment_middleware is not None}")
+                    print(f"🔍 X402 payment middleware available: {self.x402_payment_middleware is not None}")
                     
-                    if self.payment_middleware:
+                    if self.x402_payment_middleware:
                         # Extract amount from payment request
                         import re
                         amount_match = re.search(r'(\d+)\s*NP', response_text)
@@ -344,66 +370,21 @@ class MessageRouter:
                             # Automatically process payment
                             try:
                                 import asyncio
-                                payment_result = asyncio.run(
-                                    self.payment_middleware.process_payment(
-                                        self.agent_id, 
-                                        target_agent, 
-                                        amount,
-                                        anthropic_client=self.anthropic_client
-                                    )
-                                )
+                                # Note: This is legacy 402 processing - should be updated to x402 specification
+                                # For now, keeping backward compatibility
+                                print(f"⚠️ Using legacy 402 processing - recommend upgrading to x402 specification")
+                                return f"[{target_agent} → {self.agent_id}] {response_text}"
                                 
-                                print(f"💳 Payment result: {payment_result.status} - {payment_result.message}")
-                                
-                                if payment_result.status == PaymentStatus.PAID:
-                                    # Payment successful - retry request with receipt
-                                    print(f"✅ Payment processed: {payment_result.receipt_id}")
-                                    
-                                    # Create new A2A message with receipt_id as separate field
-                                    a2a_msg_retry = A2AMessage(
-                                        from_agent=self.agent_id,
-                                        to_agent=target_agent,
-                                        message=message_text,  # Keep original message unchanged
-                                        conversation_id=conversation_id,
-                                        depth=depth,
-                                        max_depth=1,
-                                        message_type="query",
-                                        receipt_id=payment_result.receipt_id  # Pass receipt as separate field
-                                    )
-                                    
-                                    formatted_retry = format_a2a_message(a2a_msg_retry)
-                                    print(f"🔄 Retrying request with receipt_id: {payment_result.receipt_id}")
-                                    
-                                    # Retry the request
-                                    retry_response = client.send_message(
-                                        Message(
-                                            role=MessageRole.USER,
-                                            content=TextContent(text=formatted_retry),
-                                            conversation_id=conversation_id
-                                        )
-                                    )
-                                    
-                                    if retry_response and hasattr(retry_response, 'content') and retry_response.content:
-                                        retry_text = retry_response.content.text if hasattr(retry_response.content, 'text') else str(retry_response.content)
-                                        print(f"✅ Retry successful: {retry_text[:100]}...")
-                                        return f"[{target_agent} → {self.agent_id}] {retry_text}"
-                                    else:
-                                        return f"[{self.agent_id}] Payment processed, message sent to {target_agent}"
-                                else:
-                                    # Payment failed
-                                    print(f"❌ Payment failed: {payment_result.message}")
-                                    return f"[{self.agent_id}] Payment failed: {payment_result.message}"
-                                    
                             except Exception as e:
-                                print(f"❌ Error during payment processing: {e}")
+                                print(f"❌ Error during legacy payment processing: {e}")
                                 import traceback
                                 traceback.print_exc()
-                                return f"[{self.agent_id}] Payment processing error: {str(e)}"
+                                return f"[{self.agent_id}] Legacy payment processing error: {str(e)}"
                         else:
                             print(f"❌ Could not extract amount from payment request: {response_text}")
                             return f"[{target_agent} → {self.agent_id}] {response_text}"
                     else:
-                        print(f"❌ No payment middleware available")
+                        print(f"❌ No x402 payment middleware available")
                         return f"[{target_agent} → {self.agent_id}] {response_text}"
                 else:
                     return f"[{target_agent} → {self.agent_id}] {response_text}"

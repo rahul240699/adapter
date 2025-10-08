@@ -123,6 +123,10 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
+# Install X402 dependencies
+echo "🔧 Installing X402 payment system dependencies..."
+./setup_x402_dependencies.sh || echo "⚠️  X402 setup completed with warnings"
+
 # Run network diagnostics
 echo "🩺 Running network diagnostics..."
 python3 network_diagnostic.py || echo "⚠️  Diagnostics completed with warnings"

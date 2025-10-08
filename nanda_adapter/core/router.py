@@ -331,11 +331,12 @@ class MessageRouter:
                             
                             # Use the complete payment flow processing
                             final_response = asyncio.run(
-                                self.x402_payment_middleware.process_payment_flow(
+                                self.x402_payment_middleware.process_complete_payment_flow(
                                     payment_required_msg=response,
                                     client=client,
                                     customer_agent_id=self.agent_id,
-                                    original_message=message_text
+                                    original_message=message_text,
+                                    target_agent_url=target_url
                                 )
                             )
                             

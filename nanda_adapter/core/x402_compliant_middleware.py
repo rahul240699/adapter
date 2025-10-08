@@ -16,7 +16,7 @@ Key compliance features:
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 from enum import Enum
 from dataclasses import dataclass, asdict
 
@@ -173,7 +173,7 @@ class X402PaymentMiddleware:
         # Create python_a2a Message
         message = Message(
             role=MessageRole.AGENT if PYTHON_A2A_AVAILABLE else "agent",
-            content=TextContent(text=f"Payment is required for {message_text}. Cost: {service_charge} points."),
+            content=TextContent(text=f"Payment is required. Cost: {service_charge} points."),
             metadata=metadata
         )
         
@@ -383,11 +383,59 @@ class X402PaymentMiddleware:
             logger.error(f"Error handling payment submission: {e}")
             return self.create_payment_failed_message(str(e))
     
+    async def process_server_payment_and_service(
+        self,
+        payment_submitted_msg: Message,
+        original_message: str,
+        service_handler: Callable[[str], str]
+    ) -> Message:
+        """
+        Server-side: Process payment submission and execute the actual service.
+        
+        Args:
+            payment_submitted_msg: The payment-submitted message from client
+            original_message: The original service request
+            service_handler: Function that processes the original request and returns response
+            
+        Returns:
+            Message with payment-completed status and actual service response
+        """
+        try:
+            # Step 1: Verify payment submission
+            payment_completion_msg = await self.handle_payment_submission(
+                payment_submitted_msg=payment_submitted_msg,
+                original_message=original_message
+            )
+            
+            # Step 2: If payment successful, execute the actual service
+            if self.is_payment_completed_message(payment_completion_msg):
+                logger.info(f"✅ Payment verified, executing service for: {original_message}")
+                
+                # Execute the actual service
+                service_response = service_handler(original_message)
+                
+                # Create combined response: payment completion + service result
+                combined_text = f"{service_response}"
+                
+                # Update the payment completion message with service response
+                payment_completion_msg.content = TextContent(text=combined_text)
+                
+                logger.info(f"✅ Service executed successfully with payment completion")
+                return payment_completion_msg
+            else:
+                logger.error(f"❌ Payment verification failed")
+                return payment_completion_msg  # Return the payment failure message
+                
+        except Exception as e:
+            logger.error(f"❌ Server payment processing failed: {e}")
+            return self.create_payment_failed_message(str(e))
+
     async def process_client_payment(
         self,
         payment_required_msg: Message,
         original_message: str,
-        from_agent: str
+        from_agent: str,
+        target_agent: str = "payment_processor"
     ) -> Message:
         """
         Client-side: Process payment-required message and create payment-submitted message.
@@ -414,7 +462,7 @@ class X402PaymentMiddleware:
             payment_result = await self._process_payment_via_mcp(
                 amount=amount,
                 from_agent=from_agent,
-                to_agent="payment_processor",  # This would be extracted from context
+                to_agent=target_agent,
                 task_description=f"Payment for: {original_message}"
             )
             
@@ -441,48 +489,46 @@ class X402PaymentMiddleware:
         to_agent: str,
         task_description: str
     ) -> Dict[str, Any]:
-        """Process payment through MCP server and return transaction details."""
+        """Process payment through MCP server using existing payment middleware logic."""
         try:
-            # Import MCP client here to avoid issues if not available
-            from mcp import ClientSession, StdioServerParameters
-            from mcp.client.stdio import stdio_client
+            # Use the existing payment middleware logic
+            from .payment_middleware import PaymentMiddleware, PaymentStatus
+            from .mcp_client import MCPClient
             
-            # Create MCP client session
-            server_params = StdioServerParameters(
-                command="npx",
-                args=["-y", "@modelcontextprotocol/server-fetch", self.mcp_server_url]
+            # Create payment middleware instance
+            payment_middleware = PaymentMiddleware(self.registry)
+            
+            # Process payment using the proven logic from payment_middleware
+            payment_result = await payment_middleware.process_payment(
+                source_agent_id=from_agent,
+                target_agent_id=to_agent,
+                amount=amount,
+                mcp_server_url=self.mcp_server_url,
+                anthropic_client=None  # Will use default client from MCPClient
             )
             
-            async with stdio_client(server_params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    
-                    # Call process_payment with proper task parameter
-                    result = await session.call_tool(
-                        "process_payment",
-                        {
-                            "amount": amount,
-                            "from_agent": from_agent,
-                            "to_agent": to_agent,
-                            "task": task_description  # This is required by the MCP server
-                        }
-                    )
-                    
-                    logger.info(f"MCP payment result: {result}")
-                    
-                    # Parse result based on MCP server response format
-                    if hasattr(result, 'content') and result.content:
-                        content = result.content[0]
-                        if hasattr(content, 'text'):
-                            response_data = json.loads(content.text)
-                            return {
-                                "success": True,
-                                "transaction_id": response_data.get("transaction_id", "unknown"),
-                                "amount": response_data.get("amount", amount),
-                                "status": response_data.get("status", "completed")
-                            }
-                    
-                    return {"success": False, "error": "Invalid MCP response format"}
+            logger.info(f"Payment result: {payment_result}")
+            
+            if payment_result.status == PaymentStatus.PAID:
+                return {
+                    "success": True,
+                    "transaction_id": payment_result.transaction_id or payment_result.receipt_id,
+                    "amount": payment_result.amount,
+                    "status": "completed",
+                    "receipt_id": payment_result.receipt_id
+                }
+            elif payment_result.status == PaymentStatus.INSUFFICIENT_BALANCE:
+                return {
+                    "success": False,
+                    "error": "Insufficient balance",
+                    "message": payment_result.message
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Payment failed",
+                    "message": payment_result.message
+                }
                     
         except Exception as e:
             logger.error(f"MCP payment processing failed: {e}")
@@ -494,26 +540,126 @@ class X402PaymentMiddleware:
         network: str,
         original_message: str
     ) -> Dict[str, Any]:
-        """Settle payment through MCP server for verification."""
+        """Settle payment through MCP server for verification using existing payment middleware."""
         try:
-            # For now, we'll treat the transaction_id as proof of payment
-            # and return success. In a real implementation, this would
-            # verify the transaction on the blockchain.
+            # Use the existing payment middleware to validate the receipt/transaction
+            from .payment_middleware import PaymentMiddleware, PaymentStatus
             
-            logger.info(f"Settling payment transaction: {transaction_id}")
+            payment_middleware = PaymentMiddleware(self.registry)
             
-            # Mock settlement result - in reality this would verify on-chain
-            return {
-                "success": True,
-                "transaction_hash": transaction_id,
-                "network": network,
-                "verified": True
-            }
+            logger.info(f"Validating transaction/receipt: {transaction_id}")
+            
+            # Validate the receipt using existing logic
+            validation_result = await payment_middleware.validate_receipt(
+                receipt_id=transaction_id,
+                mcp_server_url=self.mcp_server_url,
+                anthropic_client=None
+            )
+            
+            if validation_result.status == PaymentStatus.PAID:
+                return {
+                    "success": True,
+                    "transaction_hash": transaction_id,
+                    "network": network,
+                    "verified": True,
+                    "amount": validation_result.amount
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Receipt validation failed: {validation_result.message}"
+                }
             
         except Exception as e:
             logger.error(f"Payment settlement failed: {e}")
             return {"success": False, "error": str(e)}
     
+    async def process_complete_payment_flow(
+        self,
+        payment_required_msg: Message,
+        client,  # HTTP client for sending requests
+        customer_agent_id: str,
+        original_message: str,
+        target_agent_url: str
+    ) -> Optional[Message]:
+        """
+        Complete client-side payment flow:
+        1. Process payment-required message
+        2. Submit payment to target agent
+        3. Receive final response with original request fulfilled
+        """
+        try:
+            # Step 1: Process the payment-required message and create payment-submitted message
+            logger.info(f"🔄 Step 1: Processing payment-required message for {customer_agent_id}")
+            # Extract target agent from URL (simple extraction)
+            target_agent = target_agent_url.split('/')[-2] if '/' in target_agent_url else "unknown_agent"
+            
+            payment_submitted_msg = await self.process_client_payment(
+                payment_required_msg=payment_required_msg,
+                original_message=original_message,
+                from_agent=customer_agent_id,
+                target_agent=target_agent
+            )
+            
+            # Step 2: Send payment-submitted message back to target agent
+            logger.info(f"🔄 Step 2: Submitting payment to target agent")
+            
+            # Format the payment submission as A2A message
+            from .protocol import format_a2a_message
+            payment_submission_data = format_a2a_message(
+                content=payment_submitted_msg.content.text if hasattr(payment_submitted_msg.content, 'text') else str(payment_submitted_msg.content),
+                sender_id=customer_agent_id,
+                receiver_id="target_agent",
+                metadata=payment_submitted_msg.metadata
+            )
+            
+            # Send payment submission to target agent
+            payment_response = client.post(
+                target_agent_url,
+                json=payment_submission_data,
+                timeout=30
+            )
+            
+            if payment_response.status_code != 200:
+                raise X402PaymentError(f"Payment submission failed: {payment_response.status_code}")
+            
+            # Step 3: Process the response (should be payment-completed + actual service response)
+            logger.info(f"🔄 Step 3: Processing payment completion response")
+            
+            response_data = payment_response.json()
+            
+            # Extract the response content and metadata
+            response_content = response_data.get('content', '')
+            response_metadata = response_data.get('metadata', {})
+            
+            # Create response message
+            if PYTHON_A2A_AVAILABLE:
+                final_response = Message(
+                    role=MessageRole.AGENT,
+                    content=TextContent(text=response_content),
+                    metadata=Metadata()
+                )
+                if response_metadata:
+                    final_response.metadata.custom_fields = response_metadata
+            else:
+                final_response = Message(
+                    role="agent",
+                    content=TextContent(text=response_content),
+                    metadata=None
+                )
+            
+            # Verify it's a payment-completed message
+            if self.is_payment_completed_message(final_response):
+                logger.info(f"✅ Payment flow completed successfully!")
+                return final_response
+            else:
+                logger.warning(f"⚠️ Received response is not a payment-completed message")
+                return final_response
+                
+        except Exception as e:
+            logger.error(f"❌ Complete payment flow failed: {e}")
+            raise X402PaymentError(f"Payment flow failed: {str(e)}")
+
     def is_payment_required_message(self, message: Message) -> bool:
         """Check if message is a payment-required response."""
         if not message.metadata or not message.metadata.custom_fields:

@@ -405,7 +405,12 @@ class SimpleNANDA:
                 if self.parent.service_charge > 0:
                     if not receipt_id:
                         # No receipt provided - return 402 payment required
-                        response_text = f"402-PAYMENT-REQUIRED: This agent requires {self.parent.service_charge} NP per request. Please provide payment receipt."
+                        response_text = (
+                            f"402-PAYMENT-REQUIRED: This agent requires {self.parent.service_charge} NP per request.\n"
+                            f"Pay with: /pay @{self.parent.agent_id} {self.parent.service_charge} \"<reason>\"\n"
+                            f"Then include your receipt like: #receipt:<id>"
+                        )
+                        # response_text = f"402-PAYMENT-REQUIRED: This agent requires {self.parent.service_charge} NP per request. Please provide payment receipt."
                         self.parent.logger.log(conversation_id, "outgoing", response_text)
                         return Message(
                             role=MessageRole.AGENT,

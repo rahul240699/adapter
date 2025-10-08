@@ -14,8 +14,8 @@ REPO_BRANCH="feature/a2a-x402"                # Branch to deploy
 # Format: "IP:AGENT_ID:PORT:MODE"
 # MODE can be "interactive" or "server"
 INSTANCES=(
-    "54.242.112.20:agent_c:6001:interactive"
-    "52.20.124.144:agent_d:6002:server"
+    "54.226.83.69:agent_x:6001:interactive"
+    "54.226.80.138:agent_y:6002:server"
 )
 
 # Optional: Custom deployment directory (default: repository name)

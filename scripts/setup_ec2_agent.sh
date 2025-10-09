@@ -11,7 +11,7 @@ set -e
 AGENT_ID=${1:-agent_a}
 MODE=${2:-interactive}
 REPO_URL=${3:-"https://github.com/rahul240699/adapter.git"}
-REPO_BRANCH=${4:-"feature/remote-deployment"}
+REPO_BRANCH=${4:-"feature/integrating-payments"}
 PORT=${5:-6000}
 
 echo "🚀 Setting up NANDA Agent: $AGENT_ID (mode: $MODE)"

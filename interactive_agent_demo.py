@@ -107,6 +107,8 @@ def main():
         print(f"🛑 Press Ctrl+C to stop")
         print("=" * 60)
         try:
+            print(agent.agent_id)
+            print(agent.agent_url)
             agent.start()  # This blocks and runs the HTTP server
         except Exception as e:
             print(f"❌ Server error: {e}")

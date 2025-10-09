@@ -507,6 +507,8 @@ class SimpleNANDA:
 
         try:
             run_server(server, host=self.internal_host, port=self.port)
+        except Exception as e:
+            print(f"❌ Server error: {e}")
         except KeyboardInterrupt:
             print("\n\nShutting down...")
             print(f"✓ Agent '{self.agent_id}' stopped")

@@ -108,10 +108,10 @@ def main():
         print("=" * 60)
         try:
             agent.start()  # This blocks and runs the HTTP server
-        except KeyboardInterrupt:
-            print(f"\n\n👋 {args.agent_id} server shutting down...")
         except Exception as e:
             print(f"❌ Server error: {e}")
+        except KeyboardInterrupt:
+            print(f"\n\n👋 {args.agent_id} server shutting down...")
         return
     
     # Start agent server in background thread for interactive mode

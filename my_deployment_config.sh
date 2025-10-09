@@ -14,8 +14,8 @@ REPO_BRANCH="feature/integrating-payments"                # Branch to deploy
 # Format: "IP:AGENT_ID:PORT:MODE"
 # MODE can be "interactive" or "server"
 INSTANCES=(
-    "54.196.128.100:agent_a:6001:interactive"
-    "34.234.90.134:agent_b:6002:server"
+    "54.160.221.20:client_a:6001:interactive"
+    "3.90.103.52:server_b:6002:server"
 )
 
 # Optional: Custom deployment directory (default: repository name)

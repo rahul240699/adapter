@@ -100,6 +100,13 @@ def main():
     print(f"\n✅ {args.agent_id} ready!")
     print(f"🌐 Running on: {agent.agent_url}")
     
+    # Start agent server in background thread for interactive mode
+    def start_server():
+        try:
+            agent.start()
+        except KeyboardInterrupt:
+            pass
+    
     # If server-only mode, just start the server
     if args.server_only:
         print(f"\n🔧 Running in server-only mode")
@@ -107,21 +114,18 @@ def main():
         print(f"🛑 Press Ctrl+C to stop")
         print("=" * 60)
         try:
-            print(agent.agent_id)
-            print(agent.agent_url)
-            agent.start()  # This blocks and runs the HTTP server
+            # print(agent.agent_id)
+            # print(agent.agent_url)
+            # agent.start()  # This blocks and runs the HTTP server
+            server_thread = threading.Thread(target=start_server, daemon=True)
+            server_thread.start()
         except Exception as e:
             print(f"❌ Server error: {e}")
         except KeyboardInterrupt:
             print(f"\n\n👋 {args.agent_id} server shutting down...")
         return
     
-    # Start agent server in background thread for interactive mode
-    def start_server():
-        try:
-            agent.start()
-        except KeyboardInterrupt:
-            pass
+    
     
     server_thread = threading.Thread(target=start_server, daemon=True)
     server_thread.start()
